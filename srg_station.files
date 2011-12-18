@@ -26,3 +26,7 @@ src/iron.c
 src/input.c
 src/hal.c
 src/actions.c
+src/uart.h
+src/uart.c
+src/makefile
+makefile

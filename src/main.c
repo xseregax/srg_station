@@ -1,6 +1,9 @@
 #include "common.h"
 
 #include "hal.h"
+#include "uart.h"
+
+static struct pt g_uart_receive;
 
 
 int main(void) {
@@ -38,7 +41,7 @@ int main(void) {
 */
     //инитим экран
     init_lcd();
-/*
+
     //инитим светики
     init_leds();
 
@@ -57,21 +60,27 @@ int main(void) {
     //инитим пины для шим
     init_pwm();
 
+    /*
     //инитим прерывания
     init_isr();
-
-    _delay_ms(1);
-
+*/
+ //   _delay_ms(1);
+/*
     //заставку на экран
     hello_msg();
-
+*/
     //вкл прерывания и собаки
     //wdt_enable(WDTO_15MS);
-    enable_interrupts();
+    sei();
 
-    //go go go
-    OS::run();
-*/
 
+    PT_INIT(&g_uart_receive);
+
+    while(1) {
+
+        uart_recieve(&g_uart_receive);
+
+
+    }
 
 }

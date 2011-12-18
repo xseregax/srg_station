@@ -5,23 +5,13 @@
 #include <avr/interrupt.h>
 #include <avr/wdt.h>
 #include <util/delay.h>
+#include <avr/pgmspace.h>
+
+#include "pt.h"
 
 #include "pin_macros.h"
 #include "pins.h"
 
-//#include "hd44780.h"
-//#include "pt.h"
-
-
-
-/*
-#include "actions.h"
-#include "hal.h"
-#include "input.h"
-#include "iron.h"
-#include "pid.h"
-#include "ui.h"
-*/
 
 #define VERSION "0.1"
 
@@ -80,20 +70,7 @@
 #define TIME_1MS ((F_CPU/SYS_DIVIDER/256) / 1000) //задержка для 1мс
 
 
-//prescaler=16MHz/128 (125kHz)
-#if F_CPU == 16000000L
-#define ADC_PRESCALER (_BV(ADPS2) | _BV(ADPS1) | _BV(ADPS0))
-#elif F_CPU == 8000000L
-#define ADC_PRESCALER (_BV(ADPS2) | _BV(ADPS0))
-#elif F_CPU == 4000000L
-#define ADC_PRESCALER (_BV(ADPS2))
-#elif F_CPU == 2000000L
-#define ADC_PRESCALER (_BV(ADPS1) | _BV(ADPS0))
-#elif F_CPU == 1000000L
-#define ADC_PRESCALER (_BV(ADPS1))
-#else
-#define ADC_PRESCALER (_BV(ADPS0))
-#endif
+
 */
 
 

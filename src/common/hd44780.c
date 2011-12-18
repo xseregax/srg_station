@@ -24,7 +24,9 @@
  *  ВСЕ НАСТРОЙКИ СМОТРИЕ В ФАЙЛЕ hd44780.h
  *
  */
+
 #include "avr/pgmspace.h"
+
 #include "hd44780.h"
 
 #if HD44780_CONFIG_PINMODE>0
@@ -432,3 +434,27 @@ void hd44780_init(void) {
 }
 
 
+void lcd_str(const char *s)
+{
+    char c;
+    while ( (c = *s++) ) {
+        HD44780_SEND_CHAR(c);
+    }
+}
+
+void lcd_str_P(PGM_P pString)
+{
+    char c;
+    while( (c = pgm_read_byte(pString++)) )
+    {
+        HD44780_SEND_CHAR(c);
+    }
+}
+
+void lcd_hex(uint8_t byte)
+{
+    static const char hexdigit[] PROGMEM = "0123456789ABCDEF";
+
+    HD44780_SEND_CHAR(pgm_read_byte(&hexdigit[byte >> 4]));
+    HD44780_SEND_CHAR(pgm_read_byte(&hexdigit[byte & 0x0F]));
+}
