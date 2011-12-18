@@ -31,10 +31,6 @@
 #ifndef HD44780_H
 #define HD44780_H
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 // Указание к каким контактам подключен LCD
 
 // Некоторые тонкости.
@@ -392,19 +388,47 @@ uint8_t hd44780_ready();
     void hd44780_send_command(uint8_t,uint8_t);
 #endif
 
+
+//SRG MY
+
 void hd44780_init(void);
 
-/*
-
-void lcd_xy(uint8_t x, uint8_t y);
-void lcd_clear(void);
-void lcd_char(const char c);
-void lcd_str(const char *s);
-void lcd_str_P(PGM_P pString);
-void lcd_hex(uint8_t byte);
-*/
-#ifdef __cplusplus
+inline void lcd_xy(uint8_t x, uint8_t y) {
+    HD44780_SEND_CURSOR_POS(x, y);
 }
-#endif
+
+inline void lcd_clear(void) {
+    HD44780_SEND_CMD_CLEAR;
+}
+
+inline void lcd_char(const char c) {
+    HD44780_SEND_CHAR(c);
+}
+
+void lcd_str(const char *s)
+{
+    char c;
+    while ( (c = *s++) ) {
+        HD44780_SEND_CHAR(c);
+    }
+}
+
+void lcd_str_P(PGM_P pString)
+{
+    char c;
+    while( (c = pgm_read_byte(pString++)) )
+    {
+        HD44780_SEND_CHAR(c);
+    }
+}
+/*
+void lcd_hex(uint8_t byte)
+{
+    static const char hexdigit[] PROGMEM = "0123456789ABCDEF";
+
+    HD44780_SEND_CHAR(pgm_read_byte(&hexdigit[byte >> 4]));
+    HD44780_SEND_CHAR(pgm_read_byte(&hexdigit[byte & 0x0F]));
+}
+*/
 
 #endif //HD44780_H

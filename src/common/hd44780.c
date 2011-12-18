@@ -431,40 +431,4 @@ void hd44780_init(void) {
 
 }
 
-inline void lcd_xy(uint8_t x, uint8_t y) {
-    HD44780_SEND_CURSOR_POS(x, y);
-}
-
-inline void lcd_clear(void) {
-    HD44780_SEND_CMD_CLEAR;
-}
-
-inline void lcd_char(const char c) {
-    HD44780_SEND_CHAR(c);
-}
-
-void lcd_str(const char *s)
-{
-    char c;
-    while ( (c = *s++) ) {
-        HD44780_SEND_CHAR(c);
-    }
-}
-
-void lcd_str_P(PGM_P pString)
-{
-    char c;
-    while( (c = pgm_read_byte(pString++)) )
-    {
-        HD44780_SEND_CHAR(c);
-    }
-}
-
-void lcd_hex(uint8_t byte)
-{
-    static const char hexdigit[] PROGMEM = "0123456789ABCDEF";
-
-    HD44780_SEND_CHAR(pgm_read_byte(&hexdigit[byte >> 4]));
-    HD44780_SEND_CHAR(pgm_read_byte(&hexdigit[byte & 0x0F]));
-}
 
