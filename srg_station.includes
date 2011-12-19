@@ -1,0 +1,10 @@
+./src
+./src/common
+./src/pt
+/usr/avr/include
+/usr/avr/include/avr
+/usr/avr/include/compat
+/usr/avr/include/util
+/usr/lib/gcc/avr/4.7.0/include
+
+

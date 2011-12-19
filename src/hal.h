@@ -1,9 +1,6 @@
 #ifndef HAL_H
 #define HAL_H
 
-extern void hd44780_init();
-
-
 //prescaler=16MHz/128 (125kHz)
 #if F_CPU == 16000000L
 #define ADC_PRESCALER (_BV(ADPS2) | _BV(ADPS1) | _BV(ADPS0))
@@ -21,24 +18,14 @@ extern void hd44780_init();
 
 
 
-
-
-
 //вкл станции
-inline void power_on(void) {
+inline void hal_power_on(void) {
     DRIVER(P_POWER,OUT);
     ON(P_POWER);
 }
 
-
-//инит экрана
-inline void init_lcd(void) {
-    hd44780_init();
-}
-
-
 //инит светиков
-inline void init_leds(void) {
+inline void hal_init_leds(void) {
     uint8_t t;
 
     //out, low
@@ -48,7 +35,7 @@ inline void init_leds(void) {
 }
 
 //инит бузера
-inline void init_buzer(void) {
+inline void hal_init_buzer(void) {
     uint8_t t;
 
     //out, low
@@ -59,7 +46,7 @@ inline void init_buzer(void) {
 
 
 //инит энкодера
-inline void init_encoder(void) {
+inline void hal_init_encoder(void) {
     uint8_t t;
 
     //in, pull-up
@@ -69,7 +56,7 @@ inline void init_encoder(void) {
 }
 
 //инит кнопочек
-inline void init_buttons(void) {
+inline void hal_init_buttons(void) {
     uint8_t t;
 
     SPCR &= ~_BV(SPE);
@@ -90,7 +77,7 @@ inline void init_buttons(void) {
 
 
 //инит adc
-inline void init_adc(void) {
+inline void hal_init_adc(void) {
     uint8_t t;
 
     //in, hiz
@@ -107,7 +94,7 @@ inline void init_adc(void) {
 }
 
 //инит пинов шим
-inline void init_pwm(void) {
+inline void hal_init_pwm(void) {
     uint8_t t;
 
     //out, low
@@ -119,6 +106,21 @@ inline void init_pwm(void) {
     t = BITMASK(P_IRON_PWM) | BITMASK(P_FEN_PWM) | BITMASK(P_FEN_FAN_PWM);
     DDRD |= t;
     PORTD &= ~t;
+}
+
+//инит прерываний
+inline void hal_init_isr(void) {
+    //int2 - для ZCD
+    uint8_t t;
+
+    //in, hiz
+    t = BITMASK(P_ZCD);
+    DDRB &= ~t;
+    PORTB &= ~t;
+
+    MCUCSR &= ~_BV(ISC2); //Set to falling edge interrupt
+    GICR |= _BV(INT2); //Enable external int0
+
 }
 
 #endif // HAL_H

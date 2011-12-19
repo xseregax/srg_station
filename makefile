@@ -37,8 +37,7 @@ CXXFLAGS += $(CXXSTD)
 
 # linker flags
 #---------------- Library Options ----------------
-LDFLAGS := 
-#-Wl,-u,vfprintf -lprintf_flt -lm
+LDFLAGS := -Wl,-u,vfprintf -lprintf_flt -lm
 
 CFLAGS += -ffunction-sections -fdata-sections
 CXXFLAGS += -ffunction-sections -fdata-sections

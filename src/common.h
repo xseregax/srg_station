@@ -1,13 +1,21 @@
 #ifndef COMMON_H
 #define COMMON_H
 
+#ifndef __AVR_ATmega16A__
+    #define __AVR_ATmega16A__
+#endif
+
 #include <avr/io.h>
 #include <avr/interrupt.h>
 #include <avr/wdt.h>
+#include <util/atomic.h>
 #include <util/delay.h>
 #include <avr/pgmspace.h>
+#include <string.h>
+#include <stdio.h>
 
 #include "pt.h"
+#include "timer.h"
 
 #include "pin_macros.h"
 #include "pins.h"
@@ -30,6 +38,94 @@
 #define PN_PIN(x) PN_PIN_(x)
 #define PN_PORT(x) PN_PORT_(x)
 #define PN_DDR(x) PN_DDR_(x)
+
+
+
+
+
+
+//список элементов в меню
+//uses for TGlobalData_t.menu
+typedef enum { MENU_SELECT, MENU_IRON, MENU_FEN, MENU_DREL } TMenuStates;
+
+//действия
+typedef enum { ACT_NONE, ACT_PUSH, ACT_PUSH_LONG, ACT_ROTATE_LEFT, ACT_ROTATE_RIGHT } TActions;
+
+//кнопки и энкодер
+typedef enum { NM_NONE, NM_BUTTON1, NM_BUTTON2, NM_BUTTON3, NM_BUTTON4,
+                    NM_ENCBUTTON, NM_ENCROTATE, NM_BUTTON1_ENC } TActElements;
+
+
+//комманда на выполнение
+typedef struct {
+    unsigned active: 1;
+    TActElements name; //кто
+    TActions action; //действие
+} TActionCmd;
+
+
+
+//uses for TGlobalData_t.update_screen
+#define UPDATE_SCREEN_CLEAR 0xFF
+
+#define UPDATE_SCREEN_MENU _BV(1)
+#define UPDATE_SCREEN_VALS _BV(2)
+#define UPDATE_SCREEN_FLASH _BV(3)
+
+#define UPDATE_SCREEN_ALL UPDATE_SCREEN_MENU|UPDATE_SCREEN_VALS
+
+
+
+struct TIron_t {
+    unsigned on: 1; //вкл-выкл паяльника
+    uint16_t adc; //последние значение с adc
+    uint16_t temp; //текущая температура тены
+    uint16_t temp_need; //требуемая температура
+
+    uint16_t power; //расчетная мощность
+    int32_t error; // iron_temp_need - iron_temp
+    int32_t error_old; //предыдущее значение error
+    int32_t integral; //сумма ошибок
+    float power_tmp; //расчетное значение мощности
+};
+typedef struct TIron_t TIron;
+
+
+struct TGlobalData_t {
+
+    TMenuStates menu; //текущий пункт меню
+    uint8_t update_screen; //обновить экран
+
+    uint8_t temp; //для временного юзания
+
+    TIron iron;
+
+
+};
+typedef struct TGlobalData_t TGlobalData;
+
+
+
+//паяльник
+#define IRON_TEMP_MIN 150 //мин температура
+#define IRON_TEMP_MAX 350 //макс температура
+#define IRON_TEMP_STEP 5 //шаг регулировки температуры
+
+#define IRON_MIN_POWER 0
+#define IRON_MAX_POWER 100
+
+
+
+
+
+volatile TGlobalData g_data;
+
+
+
+
+
+
+
 
 /*
 //отправить по уарту данные о стеке
@@ -77,27 +173,9 @@
 /*
 
 
-
-#define BUTTON_SLEEP (20 * TIME_1MS) //опрос кнопок
-#define BUTTON_DEBOUNCE (100 * TIME_1MS / BUTTON_SLEEP) //антидребезг
-#define BUTTON_LONG (2000 * TIME_1MS / BUTTON_SLEEP) //долгое нажатие
-#define BUTTON_REPEAT (500 * TIME_1MS / BUTTON_SLEEP) //автоповтор
-#define BUTTON_RELEASE (500 * TIME_1MS / BUTTON_SLEEP) //отпустил
-
-#define ENCODER_SLEEP (TIME_1MS) //опрос энкодера
-
-
 #define MY_ACTIONS_SIZE 8L //кол-во комманд в очереди
 
 #define PID_STEP 10 //интервал измерений, 20msec
-
-//паяльник
-#define IRON_TEMP_MIN 150 //мин температура
-#define IRON_TEMP_MAX 350 //макс температура
-#define IRON_TEMP_STEP 5 //шаг регулировки температуры
-
-#define IRON_MIN_POWER 0
-#define IRON_MAX_POWER 100
 
 
 //пид и фаза паяльника
@@ -126,16 +204,6 @@ typedef OS::process<OS::pr5, 60> TProcUart; //uart cmd
 
 //вкл или выкл станции
 enum TPowerState { PWR_ON, PWR_OFF };
-
-//список элементов в меню
-enum TMenuStates { MENU_SELECT, MENU_IRON, MENU_FEN, MENU_DREL };
-
-//кнопки и энкодер
-enum TActElements { NM_NONE, NM_BUTTON1, NM_BUTTON2, NM_BUTTON3, NM_BUTTON4,
-                    NM_ENCBUTTON, NM_ENCROTATE, NM_BUTTON1_ENC };
-
-//действия
-enum TActions { ACT_NONE, ACT_PUSH, ACT_PUSH_LONG, ACT_ROTATE_LEFT, ACT_ROTATE_RIGHT };
 
 //
 struct TCurrStates {
@@ -179,22 +247,7 @@ struct TCurrStates {
 };
 
 
-//для опроса кнопок
-struct TButtonState {
-    TActElements name; //какая кнопка
-    unsigned on: 1; //заюзана
-    unsigned plong: 1; //долго заюзана
 
-    uint8_t cnt; //счетчик
-    uint8_t repeat; //для автоповтора
-    uint8_t release;//для сброса нажатия
-};
-
-//для очереди комманд на выполнение
-struct TActionCmd {
-    TActElements name; //кто
-    TActions action; //действие
-};
 
 //апроксимация температуры по контрольным точкам
 struct TTempZones {

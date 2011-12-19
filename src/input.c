@@ -1,93 +1,68 @@
+#include "common.h"
 #include "input.h"
 
-
-/*
+volatile TButtonState g_button_state;
 
 //обнулить состояние текущей кнопки
-inline void button_init(TButtonState &button) {
-    memset(&button, 0, sizeof(TButtonState));
+inline void button_init() {
+    memset((void*)&g_button_state, 0, sizeof(TButtonState));
 }
 
-//проверка нажатия кнопки
-inline void button_check_press(TButtonState &button) {
-    if(!button.on) { //если нажатие не точное
 
-        if(button.cnt > BUTTON_DEBOUNCE) { //antiдребезг
-            button.on = 1;
-            button.cnt = 0;
-            //button.repeat = BUTTON_REPEAT;
+//проверка нажатия кнопки
+inline void button_check_press() {
+    if(!g_button_state.on) { //если нажатие не точное
+
+        if(g_button_state.cnt > BUTTON_DEBOUNCE) { //antiдребезг
+            g_button_state.on = 1;
+            g_button_state.cnt = 0;
+
             goto butt_on;
         } else {
-            button.cnt ++;
+            g_button_state.cnt ++;
         }
     } else { //пропустили дребезг
 
-        if(!button.plong) {
-            if(button.cnt >= BUTTON_LONG) { //долго держит
-                button.plong = 1;
+        if(!g_button_state.plong) {
+            if(g_button_state.cnt >= BUTTON_LONG) { //долго держит
+                g_button_state.plong = 1;
             }
         }
         else {
-            button.cnt ++;
+            g_button_state.cnt ++;
         }
 
-        if(button.repeat >= BUTTON_REPEAT) {
+        if(g_button_state.repeat >= BUTTON_REPEAT) {
 butt_on:
-            if(gActions.get_free_size()) {
-                TActionCmd cmd;
-                cmd.name = button.name;
-                cmd.action = (button.plong? ACT_PUSH_LONG: ACT_PUSH);
-                gActions.push(cmd);
-            }
+            //добавим действие
+            g_action_cmd.name = g_button_state.name;
+            g_action_cmd.action = (g_button_state.plong? ACT_PUSH_LONG: ACT_PUSH);
+            g_action_cmd.active = 1;
 
-            button.repeat = 0;
+            g_button_state.repeat = 0;
         }
         else
-            button.repeat ++;
+            g_button_state.repeat ++;
     }
 
 }
 
 //проверка поворота энкодера
-inline void encoder_check_rotate(TButtonState &button, TActions encact) {
+inline void encoder_check_rotate(TActions encact) {
 
-   if(++button.cnt < 4) return;
+   //1 оборот, 4 импульса
+   if(++g_button_state.cnt < 4) return;
 
-   if(gActions.get_free_size()) {
-        TActionCmd cmd;
-        cmd.name = button.name;
-        cmd.action = encact;
-        gActions.push(cmd);
-    }
+    //добавим действие
+    g_action_cmd.name = g_button_state.name;
+    g_action_cmd.action = encact;
+    g_action_cmd.active = 1;
 
-    button.name = NM_NONE;
-}
-
-//проверка кнопок и энкодера
-inline void button_check(TActElements name, TButtonState &button, TActions encact) {
-    if(name != NM_NONE) { //нажали кнопку
-
-        if(name != button.name) {
-            button_init(button);
-            button.name = name;
-        } else
-            button.release = 0;
-
-        if(name != NM_ENCROTATE)
-            button_check_press(button);
-        else
-            encoder_check_rotate(button, encact);
-    }
-    else if(button.on) {
-        if(button.release >= BUTTON_RELEASE)
-            button_init(button);
-        else
-            button.release ++;
-    }
+    g_button_state.name = NM_NONE;
 }
 
 //опрос энкодера
-inline TActions encoder_poll(void) {
+static inline TActions encoder_poll(void) {
     static uint8_t old_val = 0;
     TActions action = ACT_NONE;
     uint8_t cur_val = P_ENCODER_VAL;
@@ -109,6 +84,8 @@ inline TActions encoder_poll(void) {
             if(cur_val == 1) action = ACT_ROTATE_RIGHT;
             if(cur_val == 2) action = ACT_ROTATE_LEFT;
             break;
+        default:
+            break;
     }
 
     old_val = cur_val;
@@ -116,141 +93,114 @@ inline TActions encoder_poll(void) {
     return action;
 }
 
+//проверка кнопок и энкодера
+inline void button_check(TActElements name, TActions encact) {
+    if(name != NM_NONE) { //нажали кнопку
 
-//---------------------------------------------------------------------------
-namespace OS {
+        if(name != g_button_state.name) {
 
-template<> OS_PROCESS void TProcButtons::exec()
-{
+            button_init();
+            g_button_state.name = name;
 
-    TButtonState button;
-    TActElements active_button;
-    TActions encact;
-    uint8_t button_sleep;
-
-    button_init(button);
-
-    button_sleep = 0;
-
-    for(;;) {
-        active_button = NM_NONE;
-
-        encact = encoder_poll();
-        if(encact != ACT_NONE) {
-            active_button = NM_ENCROTATE;
-        }
-        else
-        if(button_sleep++ > (BUTTON_SLEEP / ENCODER_SLEEP)) { //в связи с большой частотой опроса энкодера
-            button_sleep = 0;
-
-            if(ACTIVE(P_BUTTON1) && ACTIVE(P_ENCODER_BUTTON))
-                active_button = NM_BUTTON1_ENC;
-            else
-            if(ACTIVE(P_BUTTON1))
-                active_button = NM_BUTTON1;
-            else
-            if(ACTIVE(P_BUTTON2))
-                active_button = NM_BUTTON2;
-            else
-            if(ACTIVE(P_BUTTON3))
-                active_button = NM_BUTTON3;
-            else
-            if(ACTIVE(P_BUTTON4))
-                active_button = NM_BUTTON4;
-            else
-            if(ACTIVE(P_ENCODER_BUTTON))
-                active_button = NM_ENCBUTTON;
+        } else {
+            g_button_state.release = 0;
         }
 
-        button_check(active_button, button, encact);
-
-        sleep(ENCODER_SLEEP);
-    }
-
-} // TProcButtons::exec()
-
-} // namespace OS
-
-
-
-
-
-
-
-//TProcUart
-//---------------------------------------------------------------------------
-namespace OS {
-
-template<> OS_PROCESS void TProcUart::exec()
-{
-    uint8_t c;
-
-    for(;;) {
-        gUART.receive(c);
-
-        switch(c)
-        {
-        case 'r':
-            ON(P_LED_RED);
-
-            cli();
-            wdt_reset();
-            wdt_enable( WDTO_15MS );
-            while (1) { }
-
-            break;
-
-        default:
-            gUART.send(c);
-            break;
+        if(name != NM_ENCROTATE) {
+            button_check_press();
+        }
+        else {
+            encoder_check_rotate(encact);
         }
     }
-
-} // TProcUart::exec()
-
-} // namespace OS
-
-
-//TProcTimers
-//---------------------------------------------------------------------------
-namespace OS {
-
-template<> OS_PROCESS void TProcTimers::exec()
-{
-
-    for(;;) {
-        CALC_STACK;
-
-        if(gCurrStates.iron_on) {
-            char buf[10];
-            sprintf(buf, "I|T:%d\n", gCurrStates.iron_adc);
-            gUART.send(buf);
+    else if(g_button_state.on) {
+        if(g_button_state.release >= BUTTON_RELEASE) {
+            button_init();
         }
-
-        sleep(1000 * TIME_1MS);
-    }
-
-} // TProcTimers::exec()
-
-} // namespace OS
-
-
-
-
-//ZCD
-OS_INTERRUPT void INT2_vect()
-{
-    static uint8_t phase = 0;
-
-    OS::TISRW isr;
-
-    phase ++;
-
-    if(phase == PID_STEP) {
-        gEvPID.signal_isr();
-        phase = 0;
+        else {
+            g_button_state.release ++;
+        }
     }
 }
 
+PT_THREAD(input_pt_check_encoder(struct pt *pt)) {
+    static TIMER_T timer;
 
-*/
+    PT_BEGIN(pt);
+
+    TIMER_INIT(timer, ENCODER_SLEEP);
+    for(;;) {
+        PT_WAIT_UNTIL(pt, TIMER_ENDED(timer));
+        TIMER_NEXT(timer, ENCODER_SLEEP);
+
+        TActions encact;
+
+        encact = encoder_poll();
+        if(encact != ACT_NONE) {
+            button_check(NM_ENCROTATE, encact);
+        }
+    }
+
+    PT_END(pt);
+}
+
+
+PT_THREAD(input_pt_check_buttons(struct pt *pt)) {
+    static TIMER_T timer;
+
+    PT_BEGIN(pt);
+
+    TIMER_INIT(timer, BUTTON_SLEEP);
+    for(;;) {
+        PT_WAIT_UNTIL(pt, TIMER_ENDED(timer));
+        TIMER_NEXT(timer, BUTTON_SLEEP);
+
+        TActElements active_button;
+
+        active_button = NM_NONE;
+
+        if(ACTIVE(P_BUTTON1) && ACTIVE(P_ENCODER_BUTTON))
+            active_button = NM_BUTTON1_ENC;
+        else
+        if(ACTIVE(P_BUTTON1))
+            active_button = NM_BUTTON1;
+        else
+        if(ACTIVE(P_BUTTON2))
+            active_button = NM_BUTTON2;
+        else
+        if(ACTIVE(P_BUTTON3))
+            active_button = NM_BUTTON3;
+        else
+        if(ACTIVE(P_BUTTON4))
+            active_button = NM_BUTTON4;
+        else
+        if(ACTIVE(P_ENCODER_BUTTON))
+            active_button = NM_ENCBUTTON;
+
+        button_check(active_button, ACT_NONE);
+    }
+
+    PT_END(pt);
+}
+
+
+
+PT_THREAD(input_pt_check_inputs(struct pt *pt)) {
+    static struct pt pt_encoder, pt_buttons;
+
+    PT_BEGIN(pt);
+
+    PT_INIT(&pt_encoder);
+    PT_INIT(&pt_buttons);
+
+    PT_WAIT_THREAD(pt,
+           input_pt_check_encoder(&pt_encoder) &
+           input_pt_check_buttons(&pt_buttons)
+          );
+
+    PT_END(pt);
+}
+
+void input_init_mod(void) {
+    button_init();
+}

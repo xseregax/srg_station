@@ -1,9 +1,22 @@
 #include "common.h"
 
 #include "hal.h"
+#include "input.h"
+#include "actions.h"
+#include "ui.h"
 #include "uart.h"
 
-static struct pt g_uart_receive;
+
+volatile TGlobalData g_data;
+
+
+
+
+inline void init_global_data(void) {
+    memset((void *)&g_data, 0, sizeof(TGlobalData));
+
+    g_data.menu = MENU_SELECT;
+}
 
 
 int main(void) {
@@ -19,7 +32,7 @@ int main(void) {
     MCUCSR |= _BV(JTD);
 
     //включаем станцию
-    power_on();
+    hal_power_on();
 
     //неиспользуемые пины в pull-up
     uint8_t t;
@@ -28,59 +41,75 @@ int main(void) {
     DDRA |= t;
     PORTA &= ~t;
 
-/*
-    // запускаем системный таймер
-    SYSTEM_TIMER_CS_REG = SYS_CLOCK;
-    SYSTEM_TIMER_IE_REG |= _BV(SYSTEM_TIMER_IE_MASK);
-
-    //инитим глобальные переменные
-    init_curstates();
-
-    //инитим уарт
-    gUART.init();
-*/
-    //инитим экран
-    init_lcd();
+    //инит систем таймер
+    timer_init_timer();
 
     //инитим светики
-    init_leds();
+    hal_init_leds();
 
     //инитим пищалку
-    init_buzer();
+    hal_init_buzer();
 
     //инитим adc
-    init_adc();
+    hal_init_adc();
 
     //инитим кнопки
-    init_buttons();
+    hal_init_buttons();
 
     //инитим энкодер
-    init_encoder();
+    hal_init_encoder();
 
     //инитим пины для шим
-    init_pwm();
+    hal_init_pwm();
 
-    /*
     //инитим прерывания
-    init_isr();
-*/
- //   _delay_ms(1);
-/*
+    hal_init_isr();
+
+    //инитим экран
+    ui_init_lcd();
+
+    //инитим уарт
+    uart_init_uart();
+
+    _delay_ms(1);
+
     //заставку на экран
-    hello_msg();
-*/
+    ui_hello_msg();
+
     //вкл прерывания и собаки
     //wdt_enable(WDTO_15MS);
     sei();
 
+    init_global_data();
 
-    PT_INIT(&g_uart_receive);
+    struct pt pt_input_buttons, pt_actions_actions, pt_ui_display, pt_uart_receive;
+
+    PT_INIT(&pt_input_buttons);
+    PT_INIT(&pt_actions_actions);
+    PT_INIT(&pt_ui_display);
+    PT_INIT(&pt_uart_receive);
+
+    actions_init_mod();
+    input_init_mod();
+    ui_init_mod();
+    uart_init_mod();
 
     while(1) {
 
-        uart_recieve(&g_uart_receive);
+        //проверим нажатие кнопок
+        input_pt_check_inputs(&pt_input_buttons);
 
+        //проверим комманды
+        actions_pt_check_commands(&pt_actions_actions);
 
+        //обновим изображение на экране
+        ui_pt_update_display(&pt_ui_display);
+
+        //проверим, пришло ли что нить по уарту
+        uart_pt_recieve(&pt_uart_receive);
+
+        //пинаем собачку
+        wdt_reset();
     }
 
 }

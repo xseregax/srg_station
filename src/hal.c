@@ -1,6 +1,4 @@
 #include "common.h"
-#include "hd44780.h"
-
 #include "hal.h"
 
 /*
@@ -11,21 +9,6 @@ inline void power_off(void) {
 }
 
 
-//инит прерываний
-inline void init_isr(void) {
-    //int2 - для ZCD
-
-    uint8_t t;
-
-    //in, hiz
-    t = BITMASK(P_ZCD);
-    DDRB &= ~t;
-    PORTB &= ~t;
-
-    MCUCSR &= ~_BV(ISC2); //Set to falling edge interrupt
-    GICR |= _BV(INT2); //Enable external int0
-
-}
 
 //инит глобальных переменных
 inline void init_curstates(void) {
@@ -41,28 +24,6 @@ inline void init_curstates(void) {
 }
 
 //---------------------------------------------------------------------------
-
-PGMSTR(str_hello, "SRG @ STATION");
-PGMSTR(str_version, "*** v"VERSION" ***");
-
-//первоначальная заставка
-inline void hello_msg(void) {
-
-    lcd_xy(0, 1);
-    lcd_str_P(str_hello);
-
-    lcd_xy(1, 3);
-    lcd_str_P(str_version);
-
-    //пискнем
-    ON(P_BUZER);
-    _delay_ms(1000);
-    OFF(P_BUZER);
-
-    //очистим экран
-    lcd_clear();
-}
-
 
 
 void iron_power_on(void) {

@@ -393,7 +393,7 @@ uint8_t hd44780_ready();
 
 void hd44780_init(void);
 
-inline void lcd_xy(uint8_t x, uint8_t y) {
+inline void lcd_xy(const uint8_t x, const uint8_t y) {
     HD44780_SEND_CURSOR_POS(x, y);
 }
 
@@ -407,7 +407,7 @@ inline void lcd_char(const char c) {
 
 void lcd_str(const char *s);
 void lcd_str_P(PGM_P pString);
-void lcd_hex(uint8_t byte);
+void lcd_hex(const uint8_t byte);
 
 
 #endif //HD44780_H

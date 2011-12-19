@@ -451,7 +451,7 @@ void lcd_str_P(PGM_P pString)
     }
 }
 
-void lcd_hex(uint8_t byte)
+void lcd_hex(const uint8_t byte)
 {
     static const char hexdigit[] PROGMEM = "0123456789ABCDEF";
 

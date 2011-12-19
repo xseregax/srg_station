@@ -1,25 +1,31 @@
+#include "common.h"
 #include "actions.h"
 
-/*
+volatile TActionCmd g_action_cmd;
 
+//обнулить состояние текущей комманды
+inline void actions_init_cmd() {
+    //memset((void*)&g_action_cmd, 0, sizeof(TActionCmd));
+    g_action_cmd.active = 0;
+}
 
-inline void menu_buttons_select(const TActionCmd &action) {
+inline void menu_buttons_select(volatile const TActionCmd *action) {
 
-    if(action.name == NM_ENCROTATE) {
+    if(action->name == NM_ENCROTATE) {
 
-        switch(action.action) {
+        switch(action->action) {
         case ACT_ROTATE_LEFT:
-            if(gCurrStates.temp == 0)
-                gCurrStates.temp = 2;
+            if(g_data.temp == 0)
+                g_data.temp = 2;
             else
-                gCurrStates.temp -= 1;
+                g_data.temp -= 1;
             break;
 
         case ACT_ROTATE_RIGHT:
-            if(gCurrStates.temp == 2)
-                gCurrStates.temp = 0;
+            if(g_data.temp == 2)
+                g_data.temp = 0;
             else
-                gCurrStates.temp += 1;
+                g_data.temp += 1;
             break;
 
         default:
@@ -27,31 +33,31 @@ inline void menu_buttons_select(const TActionCmd &action) {
         }
     }
     else
-    if(action.name == NM_BUTTON1) {
+    if(action->name == NM_BUTTON1) {
 
-        switch(action.action) {
+        switch(action->action) {
         case ACT_PUSH: {
-            switch(gCurrStates.temp) {
+            switch(g_data.temp) {
                 case 1:
-                    gCurrStates.menu = MENU_FEN;
-                    gCurrStates.fen_on = 1;
-                    gCurrStates.iron_on = 0;
-                    gCurrStates.drel_on = 0;
+                    g_data.menu = MENU_FEN;
+                    //g_data.fen.on = 1;
+                    g_data.iron.on = 0;
+                    //g_data.drel.on = 0;
                     break;
                 case 2:
-                    gCurrStates.menu = MENU_DREL;
-                    gCurrStates.drel_on = 1;
-                    gCurrStates.iron_on = 0;
-                    gCurrStates.fen_off = 1;
+                    g_data.menu = MENU_DREL;
+                    //g_data.drel.on = 1;
+                    g_data.iron.on = 0;
+                    //g_data.fen.off = 1;
                     break;
                 default:
-                    gCurrStates.menu = MENU_IRON;
-                    gCurrStates.iron_on = 1;
-                    gCurrStates.drel_on = 0;
-                    gCurrStates.fen_off = 1;
+                    g_data.menu = MENU_IRON;
+                    g_data.iron.on = 1;
+                    //g_data.drel.on = 0;
+                    //g_data.fen.off = 1;
                     break;
             }
-            gCurrStates.changed_menu = 1;
+            g_data.update_screen |= UPDATE_SCREEN_ALL;
             break;
         }
         default:
@@ -61,29 +67,29 @@ inline void menu_buttons_select(const TActionCmd &action) {
     else
         return;
 
-    gEvChanged.signal();
+    g_data.update_screen |= UPDATE_SCREEN_VALS;
 }
 
-inline void menu_buttons_iron(const TActionCmd &action) {
+inline void menu_buttons_iron(volatile const TActionCmd *action) {
 
-    if(action.name == NM_ENCROTATE) {
+    if(action->name == NM_ENCROTATE) {
 
-        switch(action.action) {
+        switch(action->action) {
         case ACT_ROTATE_LEFT:
 
-            if(gCurrStates.iron_temp_need > IRON_TEMP_MIN + IRON_TEMP_STEP)
-                gCurrStates.iron_temp_need -= IRON_TEMP_STEP;
+            if(g_data.iron.temp_need > IRON_TEMP_MIN + IRON_TEMP_STEP)
+                g_data.iron.temp_need -= IRON_TEMP_STEP;
             else
-                gCurrStates.iron_temp_need = IRON_TEMP_MIN;
+                g_data.iron.temp_need = IRON_TEMP_MIN;
 
             break;
 
         case ACT_ROTATE_RIGHT:
 
-            if(gCurrStates.iron_temp_need < IRON_TEMP_MAX - IRON_TEMP_STEP)
-                gCurrStates.iron_temp_need += IRON_TEMP_STEP;
+            if(g_data.iron.temp_need < IRON_TEMP_MAX - IRON_TEMP_STEP)
+                g_data.iron.temp_need += IRON_TEMP_STEP;
             else
-                gCurrStates.iron_temp_need = IRON_TEMP_MAX;
+                g_data.iron.temp_need = IRON_TEMP_MAX;
 
             break;
 
@@ -92,15 +98,15 @@ inline void menu_buttons_iron(const TActionCmd &action) {
         }
     }
     else
-    if(action.name == NM_ENCBUTTON) {
+    if(action->name == NM_ENCBUTTON) {
 
-        switch(action.action) {
+        switch(action->action) {
         case ACT_PUSH_LONG:
 
-            gCurrStates.menu = MENU_SELECT;
-            gCurrStates.temp = 0;
-            gCurrStates.changed_menu = 1;
-            gCurrStates.iron_on = 0;
+            g_data.menu = MENU_SELECT;
+            g_data.temp = 0;
+            g_data.update_screen |= UPDATE_SCREEN_ALL;
+            g_data.iron.on = 0;
             break;
 
         default:
@@ -108,13 +114,13 @@ inline void menu_buttons_iron(const TActionCmd &action) {
         }
     }
     else
-    if(action.name == NM_BUTTON4) {
-        switch(action.action) {
+    if(action->name == NM_BUTTON4) {
+        switch(action->action) {
         case ACT_PUSH:
             TOGGLE(P_LED_RED);
             //iron_power_on();
 
-            gCurrStates.fen_on = !gCurrStates.fen_on;
+            //g_data.fen.on = !g_data.fen.on;
             break;
 
         default:
@@ -125,94 +131,93 @@ inline void menu_buttons_iron(const TActionCmd &action) {
     else
         return;
 
-    gEvChanged.signal();
+    g_data.update_screen |= UPDATE_SCREEN_VALS;
 }
 
-inline void menu_buttons_fen(const TActionCmd &action) {
+PT_THREAD(actions_pt_check_commands(struct pt *pt)) {
+    PT_BEGIN(pt);
 
-    if(action.name == NM_ENCBUTTON) {
+    for(;;) {
+        PT_WAIT_UNTIL(pt, g_action_cmd.active);
 
-        switch(action.action) {
-        case ACT_PUSH_LONG:
-
-            gCurrStates.menu = MENU_SELECT;
-            gCurrStates.temp = 1;
-            gCurrStates.changed_menu = 1;
-            gCurrStates.fen_off = 1;
+        switch(g_data.menu) {
+        case MENU_IRON:
+            menu_buttons_iron(&g_action_cmd);
             break;
-
-        default:
-            return;
-        }
-    }
-    else
-        return;
-
-    gEvChanged.signal();
-}
-
-inline void menu_buttons_drel(const TActionCmd &action) {
-
-    if(action.name == NM_ENCBUTTON) {
-
-        switch(action.action) {
-        case ACT_PUSH_LONG:
-
-            gCurrStates.menu = MENU_SELECT;
-            gCurrStates.temp = 2;
-            gCurrStates.changed_menu = 1;
-            gCurrStates.drel_on = 0;
+        case MENU_FEN:
+            //menu_buttons_fen(&action);
             break;
-
+        case MENU_DREL:
+            //menu_buttons_drel(&action);
+            break;
+        case MENU_SELECT:
+            menu_buttons_select(&g_action_cmd);
+            break;
         default:
-            return;
+            break;
         }
-    }
-    else
-        return;
 
-    gEvChanged.signal();
+        g_action_cmd.active = 0;
+    }
+
+
+    PT_END(pt);
+}
+
+
+
+void actions_init_mod(void) {
+    actions_init_cmd();
+}
+
+
+
+//ZCD
+ISR(INT2_vect) {
+    static uint8_t phase = 0;
+    phase ++;
+
+    /*
+    if(phase == PID_STEP) {
+        gEvPID.signal_isr();
+        phase = 0;
+    }
+*/
 }
 
 
 
 
 
-//TProcActions
+/*
+
+
+
+//TProcTimers
 //---------------------------------------------------------------------------
 namespace OS {
 
-template<> OS_PROCESS void TProcActions::exec()
+template<> OS_PROCESS void TProcTimers::exec()
 {
-    TActionCmd action;
 
     for(;;) {
-        gActions.pop(action);
+        CALC_STACK;
 
-        switch(gCurrStates.menu) {
-        case MENU_IRON:
-            menu_buttons_iron(action);
-            break;
-        case MENU_FEN:
-            menu_buttons_fen(action);
-            break;
-        case MENU_DREL:
-            menu_buttons_drel(action);
-            break;
-        case MENU_SELECT:
-            menu_buttons_select(action);
-            break;
-        default:
-            break;
+        if(gCurrStates.iron_on) {
+            char buf[10];
+            sprintf(buf, "I|T:%d\n", gCurrStates.iron_adc);
+            gUART.send(buf);
         }
 
+        sleep(1000 * TIME_1MS);
     }
 
-} // TProcActions::exec()
+} // TProcTimers::exec()
 
 } // namespace OS
 
-//---------------------------------------------------------------------------
+
+
 
 
 */
