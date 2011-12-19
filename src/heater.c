@@ -1,5 +1,5 @@
 #include "common.h"
-#include "iron.h"
+#include "heater.h"
 
 volatile uint8_t g_phase = 0;
 

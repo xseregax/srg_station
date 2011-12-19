@@ -4,7 +4,6 @@ src/pt/lc.h
 src/pt/lc-switch.h
 src/pt/lc-addrlabels.h
 src/input.h
-src/iron.h
 src/ui.h
 src/common/pin_macros.h
 src/common/hd44780.h
@@ -20,7 +19,6 @@ src/actions.h
 src/ui.h
 src/ui.c
 src/main.c
-src/iron.c
 src/input.c
 src/hal.c
 src/actions.c
@@ -30,3 +28,5 @@ src/makefile
 makefile
 src/common/timer.c
 src/common/timer.h
+src/heater.h
+src/heater.c
