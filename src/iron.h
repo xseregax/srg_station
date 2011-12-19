@@ -1,9 +1,23 @@
 #ifndef IRON_H
 #define IRON_H
 
-#define IRON_CHECK_TIME (10 * TIME_1MS)
+#define PID_STEP 10 //интервал измерений, 20msec
+
+
+//пид и фаза паяльника
+#define IRON_KP 10
+#define IRON_KI 0.3 * PID_STEP
+#define IRON_KD 0.1 / PID_STEP
+
+
+
+#define PHASE_IRON _BV(1)
+#define PHASE_FEN _BV(2)
+#define PHASE_ALL (PHASE_IRON | PHASE_FEN)
 
 //паяльник
+#define IRON_CHECK_TIME (5 * TIME_1MS)
+
 #define IRON_TEMP_MIN 150 //мин температура
 #define IRON_TEMP_MAX 350 //макс температура
 #define IRON_TEMP_STEP 5 //шаг регулировки температуры
@@ -17,14 +31,13 @@ void iron_init_mod(void);
 PT_THREAD(iron_pt_manage(struct pt *pt));
 
 
-
 //апроксимация температуры по контрольным точкам
-struct TTempZones {
+typedef struct {
     uint16_t y1;
     uint16_t x0;
     uint16_t y0;
     uint32_t a;
-};
+} TTempZones;
 
 /*
 данные калибровки

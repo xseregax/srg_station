@@ -74,24 +74,26 @@ typedef struct {
 
 #define UPDATE_SCREEN_ALL UPDATE_SCREEN_MENU|UPDATE_SCREEN_VALS
 
+typedef struct {
+    uint16_t power; //расчетная мощность
+    int32_t error; // temp_need - temp
+    int32_t error_old; //предыдущее значение error
+    int32_t integral; //сумма ошибок
+    float power_tmp; //расчетное значение мощности
 
+} TPid;
 
-struct TIron_t {
+typedef struct {
     unsigned on: 1; //вкл-выкл паяльника
     uint16_t adc; //последние значение с adc
     uint16_t temp; //текущая температура тены
     uint16_t temp_need; //требуемая температура
 
-    uint16_t power; //расчетная мощность
-    int32_t error; // iron_temp_need - iron_temp
-    int32_t error_old; //предыдущее значение error
-    int32_t integral; //сумма ошибок
-    float power_tmp; //расчетное значение мощности
-};
-typedef struct TIron_t TIron;
+    TPid pid;
+} TIron;
 
 
-struct TGlobalData_t {
+typedef struct {
 
     TMenuStates menu; //текущий пункт меню
     uint8_t update_screen; //обновить экран
@@ -100,9 +102,7 @@ struct TGlobalData_t {
 
     TIron iron;
 
-
-};
-typedef struct TGlobalData_t TGlobalData;
+} TGlobalData;
 
 
 

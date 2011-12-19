@@ -3,7 +3,6 @@ src/pt/pt-sem.h
 src/pt/lc.h
 src/pt/lc-switch.h
 src/pt/lc-addrlabels.h
-src/pid.h
 src/input.h
 src/iron.h
 src/ui.h
@@ -20,7 +19,6 @@ src/common.h
 src/actions.h
 src/ui.h
 src/ui.c
-src/pid.c
 src/main.c
 src/iron.c
 src/input.c
