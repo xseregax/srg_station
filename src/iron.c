@@ -163,13 +163,36 @@ PT_THREAD(iron_pt_manage(struct pt *pt)) {
 
         PT_WAIT_UNTIL(pt, g_data.iron.on && check_phase(PHASE_IRON));
 
+        TIron *iron = &g_data.iron;
+
         uint16_t adc = adc_read(ADC_PIN_IRON);
-        if(adc != g_data.iron.adc) {
-            g_data.iron.adc = adc;
-            g_data.iron.temp = find_temp(adc, gIronTempZones, sizeof(gIronTempZones));
+        if(adc != iron->adc) {
+            iron->adc = adc;
+            iron->temp = find_temp(adc, gIronTempZones, sizeof(gIronTempZones));
         }
 
+        TPid *pid = &iron->pid;
 
+        pid.error = iron->temp_need - iron->temp;
+        if(pid.power > IRON_MIN_POWER && pid->power < IRON_MAX_POWER)
+            pid->integral += pid->error;
+
+        pid->power_tmp =
+                IRON_KP * pid->error +
+                IRON_KI * pid->integral +
+                IRON_KD * (pid->error - pid->error_old);
+
+        pid->error_old = pid->error;
+
+        if(pid->power_tmp < IRON_MIN_POWER) pid->power_tmp = IRON_MIN_POWER;
+        if(pid->power_tmp > IRON_MAX_POWER) pid->power_tmp = IRON_MAX_POWER;
+
+        pid->power = (uint16_t)pid->power_tmp;
+
+        uint16_t tmp = pgm_read_word(&gPowerMas[pid->power]);
+
+        OCR1AH = tmp >> 8;
+        OCR1AL = tmp;
     }
 
     PT_END(pt);
@@ -184,8 +207,6 @@ void iron_init_mod(void) {
 
 
 
-
-
 //ZCD
 ISR(INT2_vect) {
     static uint8_t phase = 0;
@@ -196,31 +217,3 @@ ISR(INT2_vect) {
         g_phase |= PHASE_ALL;
     }
 }
-
-/*
-
-            gCurrStates.iron_error = gCurrStates.iron_temp_need - gCurrStates.iron_temp;
-            if(gCurrStates.iron_power > IRON_MIN_POWER && gCurrStates.iron_power < IRON_MAX_POWER)
-                gCurrStates.iron_integral += gCurrStates.iron_error;
-
-            gCurrStates.iron_power_tmp =
-                    IRON_KP * gCurrStates.iron_error +
-                    IRON_KI * gCurrStates.iron_integral +
-                    IRON_KD * (gCurrStates.iron_error - gCurrStates.iron_error_old);
-
-            gCurrStates.iron_error_old = gCurrStates.iron_error;
-
-            if(gCurrStates.iron_power_tmp < IRON_MIN_POWER) gCurrStates.iron_power_tmp = IRON_MIN_POWER;
-            if(gCurrStates.iron_power_tmp > IRON_MAX_POWER) gCurrStates.iron_power_tmp = IRON_MAX_POWER;
-
-            gCurrStates.iron_power = (uint16_t)gCurrStates.iron_power_tmp;
-
-            uint16_t tmp = pgm_read_word(&gPowerMas[gCurrStates.iron_power]);
-
-            OCR1AH = tmp >> 8;
-            OCR1AL = tmp;
-
-        }
-
-
-*/
