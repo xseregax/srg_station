@@ -1,10 +1,6 @@
 #ifndef INPUT_H
 #define INPUT_H
 
-#define TIME_1MS (1)
-#define TIME_1S (1000 * TIME_1MS)
-
-
 #define BUTTON_SLEEP (20 * TIME_1MS) //опрос кнопок
 #define BUTTON_DEBOUNCE (80 * TIME_1MS / BUTTON_SLEEP) //антидребезг
 #define BUTTON_LONG (2000 * TIME_1MS / BUTTON_SLEEP) //долгое нажатие

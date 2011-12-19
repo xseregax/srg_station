@@ -106,18 +106,6 @@ typedef struct TGlobalData_t TGlobalData;
 
 
 
-//паяльник
-#define IRON_TEMP_MIN 150 //мин температура
-#define IRON_TEMP_MAX 350 //макс температура
-#define IRON_TEMP_STEP 5 //шаг регулировки температуры
-
-#define IRON_MIN_POWER 0
-#define IRON_MAX_POWER 100
-
-
-
-
-
 volatile TGlobalData g_data;
 
 
@@ -145,65 +133,10 @@ volatile TGlobalData g_data;
 */
 
 
-/*
-    Предделитель
-    CS02 CS01 CS00
-    000 - off, 001 - 1, 010 - 8, 011 - 64, 100 - 256, 101 - 1024
-    110 - от ножки Т0 на переходе с 1 на 0
-    111 - от ножки Т0 на переходе с 0 на 1
-*/
-/*
-#define SYS_DIVIDER 8
-
-#if SYS_DIVIDER == 64
-    #define SYS_CLOCK (_BV(CS01) | _BV(CS00))
-#elif SYS_DIVIDER == 8
-    #define SYS_CLOCK (_BV(CS01))
-#else
-    #define SYS_CLOCK (_BV(CS00))
-#endif
-
-#define TIME_1MS ((F_CPU/SYS_DIVIDER/256) / 1000) //задержка для 1мс
-
-
-
-*/
-
 
 /*
 
 
-#define MY_ACTIONS_SIZE 8L //кол-во комманд в очереди
-
-#define PID_STEP 10 //интервал измерений, 20msec
-
-
-//пид и фаза паяльника
-#define IRON_KP 10
-#define IRON_KI 0.3 * PID_STEP
-#define IRON_KD 0.1 / PID_STEP
-
-//фен
-#define FEN_TEMP_MIN 150 //мин температура
-#define FEN_TEMP_MAX 350 //макс температура
-#define FEN_TEMP_STEP 5 //шаг регулировки температуры
-
-
-
-
-//
-//      Process types
-//
-typedef OS::process<OS::pr0, 120> TProc0;
-typedef OS::process<OS::pr1, 120> TProcButtons; //buttons
-typedef OS::process<OS::pr2, 120> TProcActions; //actions
-typedef OS::process<OS::pr3, 150> TProcGui; //lcd, leds
-
-typedef OS::process<OS::pr4, 150> TProcTimers; //timers
-typedef OS::process<OS::pr5, 60> TProcUart; //uart cmd
-
-//вкл или выкл станции
-enum TPowerState { PWR_ON, PWR_OFF };
 
 //
 struct TCurrStates {
@@ -249,13 +182,7 @@ struct TCurrStates {
 
 
 
-//апроксимация температуры по контрольным точкам
-struct TTempZones {
-    uint16_t y1;
-    uint16_t x0;
-    uint16_t y0;
-    uint32_t a;
-};
+
 
 
 

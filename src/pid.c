@@ -1,5 +1,6 @@
+#include "common.h"
 #include "pid.h"
-/*
+
 
 //для пропуска периодов
 PGM(uint16_t gPowerMas[]) = {
@@ -106,4 +107,12 @@ PGM(uint16_t gPowerMas[]) = {
     50             //100%  50 а не 0 для надежного открытия симистора
 };
 
-*/
+
+
+
+//ZCD
+ISR(INT2_vect) {
+    static uint8_t phase = 0;
+    phase ++;
+}
+

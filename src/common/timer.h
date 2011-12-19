@@ -1,6 +1,10 @@
 #ifndef TIMER_H
 #define TIMER_H
 
+#define TIME_1MS (1)
+#define TIME_1S (1000 * TIME_1MS)
+
+
 #define TIMER_ISR_COMPARE (F_CPU / 64 / 1000L - 1)
 
 #define TIMER_T uint32_t

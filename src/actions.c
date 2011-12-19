@@ -1,4 +1,5 @@
 #include "common.h"
+#include "iron.h"
 #include "actions.h"
 
 volatile TActionCmd g_action_cmd;
@@ -171,53 +172,3 @@ void actions_init_mod(void) {
 }
 
 
-
-//ZCD
-ISR(INT2_vect) {
-    static uint8_t phase = 0;
-    phase ++;
-
-    /*
-    if(phase == PID_STEP) {
-        gEvPID.signal_isr();
-        phase = 0;
-    }
-*/
-}
-
-
-
-
-
-/*
-
-
-
-//TProcTimers
-//---------------------------------------------------------------------------
-namespace OS {
-
-template<> OS_PROCESS void TProcTimers::exec()
-{
-
-    for(;;) {
-        CALC_STACK;
-
-        if(gCurrStates.iron_on) {
-            char buf[10];
-            sprintf(buf, "I|T:%d\n", gCurrStates.iron_adc);
-            gUART.send(buf);
-        }
-
-        sleep(1000 * TIME_1MS);
-    }
-
-} // TProcTimers::exec()
-
-} // namespace OS
-
-
-
-
-
-*/

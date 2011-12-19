@@ -1,23 +1,6 @@
 #ifndef HAL_H
 #define HAL_H
 
-//prescaler=16MHz/128 (125kHz)
-#if F_CPU == 16000000L
-#define ADC_PRESCALER (_BV(ADPS2) | _BV(ADPS1) | _BV(ADPS0))
-#elif F_CPU == 8000000L
-#define ADC_PRESCALER (_BV(ADPS2) | _BV(ADPS0))
-#elif F_CPU == 4000000L
-#define ADC_PRESCALER (_BV(ADPS2))
-#elif F_CPU == 2000000L
-#define ADC_PRESCALER (_BV(ADPS1) | _BV(ADPS0))
-#elif F_CPU == 1000000L
-#define ADC_PRESCALER (_BV(ADPS1))
-#else
-#define ADC_PRESCALER (_BV(ADPS0))
-#endif
-
-
-
 //вкл станции
 inline void hal_power_on(void) {
     DRIVER(P_POWER,OUT);
@@ -89,7 +72,8 @@ inline void hal_init_adc(void) {
     //Aref = 2.494 ext stab
     ADMUX = 0b000000000;
 
-    ADCSRA = _BV(ADEN) | ADC_PRESCALER;
+    //prescaler=16MHz/128 (125kHz)
+    ADCSRA = _BV(ADEN) | _BV(ADPS2) | _BV(ADPS1) | _BV(ADPS0);
     //ADCSRB = (1<<ADHSM); // high speed mode
 }
 

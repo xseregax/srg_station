@@ -7,6 +7,7 @@
 #include "common.h"
 
 #include "hal.h"
+#include "iron.h"
 #include "input.h"
 #include "actions.h"
 #include "ui.h"
@@ -88,19 +89,24 @@ int main(void) {
 
     init_global_data();
 
-    struct pt pt_input_buttons, pt_actions_actions, pt_ui_display, pt_uart_receive;
+    struct pt pt_iron_manage,
+            pt_input_buttons, pt_actions_actions, pt_ui_display, pt_uart_receive;
 
+    PT_INIT(&pt_iron_manage);
     PT_INIT(&pt_input_buttons);
     PT_INIT(&pt_actions_actions);
     PT_INIT(&pt_ui_display);
     PT_INIT(&pt_uart_receive);
 
+    iron_init_mod();
     actions_init_mod();
     input_init_mod();
     ui_init_mod();
     uart_init_mod();
 
     while(1) {
+        //
+        iron_pt_manage(&pt_iron_manage);
 
         //проверим нажатие кнопок
         input_pt_check_inputs(&pt_input_buttons);
