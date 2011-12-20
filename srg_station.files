@@ -30,3 +30,4 @@ src/common/timer.c
 src/common/timer.h
 src/heater.h
 src/heater.c
+src/LICENSE

@@ -60,10 +60,10 @@ inline void menu_display_iron(void) {
         lcd_clear();
 
         lcd_xy(0, 0);
-        lcd_str_P(str_curr_temp);
+        //lcd_str_P(str_curr_temp);
 
         lcd_xy(1, 0);
-        lcd_str_P(str_iron);
+        //lcd_str_P(str_iron);
     }
 
     if(g_data.update_screen & UPDATE_SCREEN_VALS) {
@@ -73,8 +73,12 @@ inline void menu_display_iron(void) {
         lcd_xy(0, 0);
         lcd_str(buf);
 
-        lcd_xy(1, 15);
-        lcd_char('H');
+        lcd_xy(1, 0);
+        sprintf(buf, "%04d", g_data.iron.pid.power);
+        lcd_str(buf);
+
+        //lcd_xy(1, 15);
+        //lcd_char('H');
     }
 }
 

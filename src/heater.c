@@ -150,6 +150,7 @@ uint8_t check_phase(uint8_t flag) {
 
     ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
         st = g_phase & flag;
+        g_phase &= ~ flag;
     }
 
     return st;
@@ -163,18 +164,20 @@ PT_THREAD(iron_pt_manage(struct pt *pt)) {
 
         PT_WAIT_UNTIL(pt, g_data.iron.on && check_phase(PHASE_IRON));
 
-        TIron *iron = &g_data.iron;
+        volatile TIron *iron = &g_data.iron;
 
         uint16_t adc = adc_read(ADC_PIN_IRON);
         if(adc != iron->adc) {
             iron->adc = adc;
-            iron->temp = find_temp(adc, gIronTempZones, sizeof(gIronTempZones));
+            iron->temp = iron->temp_need + 1;//find_temp(adc, gIronTempZones, sizeof(gIronTempZones));
+
+            g_data.update_screen |= UPDATE_SCREEN_VALS;
         }
+/*
+        volatile TPid *pid = &iron->pid;
 
-        TPid *pid = &iron->pid;
-
-        pid.error = iron->temp_need - iron->temp;
-        if(pid.power > IRON_MIN_POWER && pid->power < IRON_MAX_POWER)
+        pid->error = iron->temp_need - iron->temp;
+        if(pid->power > IRON_MIN_POWER && pid->power < IRON_MAX_POWER)
             pid->integral += pid->error;
 
         pid->power_tmp =
@@ -193,6 +196,9 @@ PT_THREAD(iron_pt_manage(struct pt *pt)) {
 
         OCR1AH = tmp >> 8;
         OCR1AL = tmp;
+
+        g_data.update_screen |= UPDATE_SCREEN_VALS;
+        */
     }
 
     PT_END(pt);
@@ -203,6 +209,8 @@ void iron_init_mod(void) {
 
     g_data.iron.on = 0;
     g_data.iron.temp_need = IRON_TEMP_MIN;
+
+    g_data.iron.pid.power = 5000;
 }
 
 
@@ -211,9 +219,20 @@ void iron_init_mod(void) {
 ISR(INT2_vect) {
     static uint8_t phase = 0;
 
+    TCNT1H = 0x00; //Сбрасываем таймер времени
+    TCNT1L = 0x00; //перед включением симистора в 0
+
     if(++phase == PID_STEP) {
         phase = 0;
 
         g_phase |= PHASE_ALL;
     }
+}
+
+ISR(TIMER1_COMPA_vect) {
+    if(!g_data.iron.on) return;
+
+    ON(P_IRON_PWM);           // Вкл сим
+    _delay_us(100);          // Длительность импульса вкл сим
+    OFF(P_IRON_PWM);           // Выкл сим
 }

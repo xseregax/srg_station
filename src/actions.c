@@ -1,5 +1,5 @@
 #include "common.h"
-#include "iron.h"
+#include "heater.h"
 #include "actions.h"
 
 volatile TActionCmd g_action_cmd;
@@ -82,6 +82,8 @@ inline void menu_buttons_iron(volatile const TActionCmd *action) {
                 g_data.iron.temp_need -= IRON_TEMP_STEP;
             else
                 g_data.iron.temp_need = IRON_TEMP_MIN;
+if(g_data.iron.pid.power < 100) g_data.iron.pid.power=0;
+else g_data.iron.pid.power -= 100;
 
             break;
 
@@ -91,12 +93,16 @@ inline void menu_buttons_iron(volatile const TActionCmd *action) {
                 g_data.iron.temp_need += IRON_TEMP_STEP;
             else
                 g_data.iron.temp_need = IRON_TEMP_MAX;
+if(g_data.iron.pid.power > 5400) g_data.iron.pid.power=5500;
+else  g_data.iron.pid.power += 100;
 
             break;
 
         default:
             return;
         }
+        OCR1AH = g_data.iron.pid.power >> 8;
+        OCR1AL = g_data.iron.pid.power;
     }
     else
     if(action->name == NM_ENCBUTTON) {

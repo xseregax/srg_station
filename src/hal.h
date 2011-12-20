@@ -90,6 +90,27 @@ inline void hal_init_pwm(void) {
     t = BITMASK(P_IRON_PWM) | BITMASK(P_FEN_PWM) | BITMASK(P_FEN_FAN_PWM);
     DDRD |= t;
     PORTD &= ~t;
+
+    //IRON PWM
+    //page 109, Normal mode
+    TCCR1A = 0;
+
+    //table 47, mode 0, prescaler 8
+    TCCR1B = 0x02;
+
+    TCNT1H=0x00;
+    TCNT1L=0x00;
+
+    ICR1H=0x00;
+    ICR1L=0x00;
+
+    OCR1AH=0x00;
+    OCR1AL=0x00;
+
+    OCR1BH=0x00;
+    OCR1BL=0x32;
+
+    TIMSK |= _BV(OCIE1A);
 }
 
 //инит прерываний
