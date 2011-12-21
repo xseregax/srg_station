@@ -159,13 +159,81 @@ uint8_t check_phase(uint8_t flag) {
     return st;
 }
 
+void pid_Init(int16_t p_factor, int16_t i_factor, int16_t d_factor, volatile TPid *pid)
+// Set up PID controller parameters
+{
+  // Start values for PID controller
+  pid->sumError = 0;
+  pid->lastProcessValue = 0;
+  // Tuning constants for PID loop
+  pid->P_Factor = p_factor;
+  pid->I_Factor = i_factor;
+  pid->D_Factor = d_factor;
+  // Limits to avoid overflow
+  pid->maxError = MAX_INT / (pid->P_Factor + 1);
+  pid->maxSumError = MAX_I_TERM / (pid->I_Factor + 1);
+}
+
+int16_t pid_Controller(int16_t setPoint, int16_t processValue, volatile TPid *pid_st)
+{
+  int16_t error, p_term, d_term;
+  int32_t i_term, ret, temp;
+
+  error = setPoint - processValue;
+
+  // Calculate Pterm and limit error overflow
+  if (error > pid_st->maxError){
+    p_term = MAX_INT;
+  }
+  else if (error < -pid_st->maxError){
+    p_term = -MAX_INT;
+  }
+  else{
+    p_term = pid_st->P_Factor * error;
+  }
+
+  // Calculate Iterm and limit integral runaway
+  temp = pid_st->sumError + error;
+  if(temp > pid_st->maxSumError){
+    i_term = MAX_I_TERM;
+    pid_st->sumError = pid_st->maxSumError;
+  }
+  else if(temp < -pid_st->maxSumError){
+    i_term = -MAX_I_TERM;
+    pid_st->sumError = -pid_st->maxSumError;
+  }
+  else{
+    pid_st->sumError = temp;
+    i_term = pid_st->I_Factor * pid_st->sumError;
+  }
+
+  // Calculate Dterm
+  d_term = pid_st->D_Factor * (pid_st->lastProcessValue - processValue);
+
+  pid_st->lastProcessValue = processValue;
+
+  ret = (p_term + i_term + d_term) / SCALING_FACTOR;
+  if(ret > MAX_INT){
+    ret = MAX_INT;
+  }
+  else if(ret < -MAX_INT){
+    ret = -MAX_INT;
+  }
+
+  return((int16_t)ret);
+}
+
 PT_THREAD(iron_pt_manage(struct pt *pt)) {
+    static TIMER_T timer;
 
     PT_BEGIN(pt);
 
+    TIMER_INIT(timer, SCALING_FACTOR);
     for(;;) {
+        PT_WAIT_UNTIL(pt, g_data.iron.on && TIMER_ENDED(timer));
+        TIMER_INIT(timer, SCALING_FACTOR);
 
-        PT_WAIT_UNTIL(pt, g_data.iron.on && check_phase(PHASE_IRON));
+        //PT_WAIT_UNTIL(pt, g_data.iron.on && check_phase(PHASE_IRON));
 
         volatile TIron *iron = &g_data.iron;
 
@@ -182,15 +250,39 @@ PT_THREAD(iron_pt_manage(struct pt *pt)) {
             g_data.update_screen |= UPDATE_SCREEN_VALS;
         }
 
+        if(!iron->pid.init)
+            pid_Init(IRON_KP * SCALING_FACTOR, IRON_KI * SCALING_FACTOR , IRON_KD * SCALING_FACTOR, &iron->pid);
+
+        int16_t pow = pid_Controller(iron->temp_need, iron->temp, &iron->pid);
+
+        float x = (100.0 / UINT16_MAX);
+        uint16_t pow2 =  x * (pow + MAX_INT) ;
+
+        if(pow2 <= IRON_MIN_POWER) pow2 = IRON_MIN_POWER;
+        if(pow2 > IRON_MAX_POWER) pow2 = IRON_MAX_POWER;
+
+        iron->pid.power = pow2;
+
+        ATOMIC_BLOCK(ATOMIC_FORCEON) {
+            OCR1A = pgm_read_word(&gPowerMas[iron->pid.power]);
+        }
+
+
+/*
         volatile TPid *pid = &iron->pid;
 
         pid->error = iron->temp_need - iron->temp;
-        if(pid->power > IRON_MIN_POWER && pid->power < IRON_MAX_POWER)
-            pid->integral += pid->error;
+
+        pid->integral += pid->error;
+        if(pid->integral > IRON_PID_IMAX)
+            pid->integral = IRON_PID_IMAX;
+        else
+            if(pid->integral < IRON_PID_IMIN)
+                pid->integral = IRON_PID_IMIN;
 
         pid->power_tmp =
                 IRON_KP * pid->error +
-                IRON_KI * pid->integral +
+                IRON_KI * pid->integral -
                 IRON_KD * (pid->error - pid->error_old);
 
         pid->error_old = pid->error;
@@ -203,7 +295,7 @@ PT_THREAD(iron_pt_manage(struct pt *pt)) {
         ATOMIC_BLOCK(ATOMIC_FORCEON) {
             OCR1A = pgm_read_word(&gPowerMas[pid->power]);
         }
-
+*/
         g_data.update_screen |= UPDATE_SCREEN_VALS;
 
     }

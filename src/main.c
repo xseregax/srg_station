@@ -83,10 +83,6 @@ int main(void) {
     //заставку на экран
     ui_hello_msg();
 
-    //вкл прерывания и собаки
-    //wdt_enable(WDTO_15MS);
-    sei();
-
     init_global_data();
 
     struct pt pt_iron_manage,
@@ -103,6 +99,11 @@ int main(void) {
     input_init_mod();
     ui_init_mod();
     uart_init_mod();
+
+    //вкл прерывания и собаки
+    wdt_reset();
+    wdt_enable(WDTO_15MS);
+    sei();
 
     while(1) {
         //

@@ -34,7 +34,7 @@ inline void menu_buttons_select(volatile const TActionCmd *action) {
         }
     }
     else
-    if(action->name == NM_BUTTON1) {
+    if(action->name == NM_BUTTON2) {
 
         switch(action->action) {
         case ACT_PUSH: {
@@ -64,6 +64,23 @@ inline void menu_buttons_select(volatile const TActionCmd *action) {
         default:
             return;
         }
+    }
+    else
+    if(action->name == NM_BUTTON1) {
+        switch(action->action) {
+        case ACT_PUSH:
+
+            cli();
+            wdt_reset();
+            wdt_enable( WDTO_15MS );
+            while (1) { }
+
+            break;
+
+        default:
+            return;
+        }
+
     }
     else
         return;
@@ -116,13 +133,15 @@ inline void menu_buttons_iron(volatile const TActionCmd *action) {
         }
     }
     else
-    if(action->name == NM_BUTTON4) {
+    if(action->name == NM_BUTTON1) {
         switch(action->action) {
         case ACT_PUSH:
-            TOGGLE(P_LED_RED);
-            //iron_power_on();
 
-            //g_data.fen.on = !g_data.fen.on;
+            cli();
+            wdt_reset();
+            wdt_enable( WDTO_15MS );
+            while (1) { }
+
             break;
 
         default:

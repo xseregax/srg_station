@@ -8,9 +8,12 @@
 
 
 //пид и фаза паяльника
+
+#define SCALING_FACTOR 100
+
 #define IRON_KP 10
-#define IRON_KI (0.3 * PID_STEP)
-#define IRON_KD (0.1 / PID_STEP)
+#define IRON_KI 0.1
+#define IRON_KD 50
 
 
 
@@ -28,6 +31,8 @@
 #define IRON_MIN_POWER 0
 #define IRON_MAX_POWER 100
 
+#define IRON_PID_IMIN 0.1
+#define IRON_PID_IMAX 1
 
 void iron_init_mod(void);
 PT_THREAD(iron_pt_manage(struct pt *pt));

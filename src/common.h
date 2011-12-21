@@ -75,13 +75,29 @@ typedef struct {
 #define UPDATE_SCREEN_ALL (UPDATE_SCREEN_MENU|UPDATE_SCREEN_VALS)
 
 typedef struct {
-    uint16_t power; //расчетная мощность
-    int32_t error; // temp_need - temp
-    int32_t error_old; //предыдущее значение error
-    int32_t integral; //сумма ошибок
-    float power_tmp; //расчетное значение мощности
+    unsigned init: 1;
 
+    // Last process value, used to find derivative of process value.
+    int16_t lastProcessValue;
+    // Summation of errors, used for integrate calculations
+    int32_t sumError;
+    // The Proportional tuning constant, multiplied with SCALING_FACTOR
+    int16_t P_Factor;
+    // The Integral tuning constant, multiplied with SCALING_FACTOR
+    int16_t I_Factor;
+    // The Derivative tuning constant, multiplied with SCALING_FACTOR
+    int16_t D_Factor;
+    // Maximum allowed error, avoid overflow
+    int16_t maxError;
+    // Maximum allowed sumerror, avoid overflow
+    int32_t maxSumError;
+
+    uint16_t power;
 } TPid;
+
+#define MAX_INT         INT16_MAX
+#define MAX_LONG        INT32_MAX
+#define MAX_I_TERM      (MAX_LONG / 2)
 
 typedef struct {
     unsigned on: 1; //вкл-выкл паяльника
