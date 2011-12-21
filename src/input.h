@@ -3,7 +3,7 @@
 
 #define BUTTON_SLEEP (20 * TIME_1MS) //опрос кнопок
 #define BUTTON_DEBOUNCE (80 * TIME_1MS / BUTTON_SLEEP) //антидребезг
-#define BUTTON_LONG (2000 * TIME_1MS / BUTTON_SLEEP) //долгое нажатие
+#define BUTTON_LONG (2000L * TIME_1MS / BUTTON_SLEEP) //долгое нажатие
 #define BUTTON_REPEAT (500 * TIME_1MS / BUTTON_SLEEP) //автоповтор
 #define BUTTON_RELEASE (200 * TIME_1MS / BUTTON_SLEEP) //отпустил
 

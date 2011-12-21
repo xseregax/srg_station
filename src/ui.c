@@ -68,13 +68,13 @@ inline void menu_display_iron(void) {
 
     if(g_data.update_screen & UPDATE_SCREEN_VALS) {
 
-        sprintf(buf, "%04d / %04d \337C", g_data.iron.temp, g_data.iron.adc);
+        sprintf(buf, "%04d / %04d \337C", g_data.iron.temp, g_data.iron.temp_need);
 
         lcd_xy(0, 0);
         lcd_str(buf);
 
         lcd_xy(1, 0);
-        sprintf(buf, "%04d", g_data.iron.pid.power);
+        sprintf(buf, "%04d / %04d", g_data.iron.adc, g_data.iron.pid.power);
         lcd_str(buf);
 
         //lcd_xy(1, 15);

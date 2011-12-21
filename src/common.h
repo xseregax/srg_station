@@ -72,7 +72,7 @@ typedef struct {
 #define UPDATE_SCREEN_VALS _BV(2)
 #define UPDATE_SCREEN_FLASH _BV(3)
 
-#define UPDATE_SCREEN_ALL UPDATE_SCREEN_MENU|UPDATE_SCREEN_VALS
+#define UPDATE_SCREEN_ALL (UPDATE_SCREEN_MENU|UPDATE_SCREEN_VALS)
 
 typedef struct {
     uint16_t power; //расчетная мощность
@@ -178,16 +178,6 @@ struct TCurrStates {
     uint16_t drel_rpm_need; //требуемые обороты
     uint16_t drel_pwm; //шим на дрель
 };
-
-
-
-
-
-
-
-
-//ISR(INT0_vect);
-ISR(INT2_vect);
 
 
 */

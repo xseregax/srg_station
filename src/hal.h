@@ -1,6 +1,9 @@
 #ifndef HAL_H
 #define HAL_H
 
+#define TIMER1A_PRESCALE _BV(CS11)
+#define TIMER1_PRESCALE_OFF (_BV(CS12) | _BV(CS11) | _BV(CS10))
+
 //вкл станции
 inline void hal_power_on(void) {
     DRIVER(P_POWER,OUT);
@@ -91,26 +94,27 @@ inline void hal_init_pwm(void) {
     DDRD |= t;
     PORTD &= ~t;
 
-    //IRON PWM
-    //page 109, Normal mode
-    TCCR1A = 0;
+    //FIM for iron (timers)
+    //timer1, CTC, OCR = power
 
-    //table 47, mode 0, prescaler 8
-    TCCR1B = 0x02;
+    //prescale off
+    TCCR1B &= ~TIMER1_PRESCALE_OFF;
 
-    TCNT1H=0x00;
-    TCNT1L=0x00;
+    //mode normal
+    //TCCR1A = 0;
 
-    ICR1H=0x00;
-    ICR1L=0x00;
+    //mode 4, CTC, prescaler to 8 (2MHz), def off
+    TCCR1B |= _BV(WGM12);
 
-    OCR1AH=0x00;
-    OCR1AL=0x00;
+    //текущий счетчик
+    TCNT1 = 0;
+    //для сравнения
+    OCR1A = 0;
 
-    OCR1BH=0x00;
-    OCR1BL=0x32;
-
+    //вкл прерыв. таймер1
     TIMSK |= _BV(OCIE1A);
+
+    //end FIM (timers)
 }
 
 //инит прерываний
@@ -123,8 +127,9 @@ inline void hal_init_isr(void) {
     DDRB &= ~t;
     PORTB &= ~t;
 
-    MCUCSR &= ~_BV(ISC2); //Set to falling edge interrupt
-    GICR |= _BV(INT2); //Enable external int0
+    //для ZCD
+    MCUCSR &= ~_BV(ISC2); //ниспадающий фронт
+    GICR |= _BV(INT2); //вкл прерывание
 
 }
 

@@ -10,8 +10,6 @@ src/common/hd44780.h
 src/common/hd44780.c
 src/pins.h
 src/pins.h
-src/pid.h
-src/iron.h
 src/input.h
 src/hal.h
 src/common.h

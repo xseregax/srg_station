@@ -1,112 +1,115 @@
 #include "common.h"
+#include "hal.h"
 #include "heater.h"
 
 volatile uint8_t g_phase = 0;
 
+//F_CPU / Timer1 rescaler / 500kHz base table
+#define RECAL_TIME (F_CPU / 8 / 500000L)
 
 //для пропуска периодов
 PGM(uint16_t gPowerMas[]) = {
-    5500,          //0% 5500 а не 5000 для надежного 0
-    4684,          //1%
-    4551,          //2%
-    4448,          //3%
-    4361,          //4%
-    4284,          //5%
-    4214,          //6%
-    4150,          //7%
-    4089,          //8%
-    4032,          //9%
-    3978,          //10%
-    3926,          //11%
-    3876,          //12%
-    3828,          //13%
-    3781,          //14%
-    3736,          //15%
-    3692,          //16%
-    3649,          //17%
-    3607,          //18%
-    3566,          //19%
-    3526,          //20%
-    3487,          //21%
-    3448,          //22%
-    3410,          //23%
-    3372,          //24%
-    3335,          //25%
-    3298,          //26%
-    3262,          //27%
-    3227,          //28%
-    3191,          //29%
-    3157,          //30%
-    3122,          //31%
-    3088,          //32%
-    3054,          //33%
-    3020,          //34%
-    2986,          //35%
-    2953,          //36%
-    2920,          //37%
-    2887,          //38%
-    2854,          //39%
-    2822,          //40%
-    2789,          //41%
-    2757,          //42%
-    2725,          //43%
-    2693,          //44%
-    2661,          //45%
-    2629,          //46%
-    2597,          //47%
-    2565,          //48%
-    2533,          //49%
-    2501,          //50%
-    2469,          //51%
-    2438,          //52%
-    2406,          //53%
-    2374,          //54%
-    2342,          //55%
-    2310,          //56%
-    2278,          //57%
-    2245,          //58%
-    2213,          //59%
-    2181,          //60%
-    2148,          //61%
-    2115,          //62%
-    2082,          //63%
-    2049,          //64%
-    2016,          //65%
-    1983,          //66%
-    1949,          //67%
-    1915,          //68%
-    1881,          //69%
-    1846,          //70%
-    1811,          //71%
-    1776,          //72%
-    1740,          //73%
-    1704,          //74%
-    1668,          //75%
-    1630,          //76%
-    1593,          //77%
-    1555,          //78%
-    1516,          //79%
-    1477,          //80%
-    1436,          //81%
-    1395,          //82%
-    1353,          //83%
-    1311,          //84%
-    1267,          //85%
-    1221,          //86%
-    1175,          //87%
-    1127,          //88%
-    1077,          //89%
-    1025,          //90%
-    970,           //91%
-    913,           //92%
-    853,           //93%
-    788,           //94%
-    718,           //95%
-    641,           //96%
-    554,           //97%
-    452,           //98%
-    319,           //99%
-    50             //100%  50 а не 0 для надежного открытия симистора
+    0 * RECAL_TIME,          //0% 5500 а не 5000 для надежного 0
+    4684 * RECAL_TIME,          //1%
+    4551 * RECAL_TIME,          //2%
+    4448 * RECAL_TIME,          //3%
+    4361 * RECAL_TIME,          //4%
+    4284 * RECAL_TIME,          //5%
+    4214 * RECAL_TIME,          //6%
+    4150 * RECAL_TIME,          //7%
+    4089 * RECAL_TIME,          //8%
+    4032 * RECAL_TIME,          //9%
+    3978 * RECAL_TIME,          //10%
+    3926 * RECAL_TIME,          //11%
+    3876 * RECAL_TIME,          //12%
+    3828 * RECAL_TIME,          //13%
+    3781 * RECAL_TIME,          //14%
+    3736 * RECAL_TIME,          //15%
+    3692 * RECAL_TIME,          //16%
+    3649 * RECAL_TIME,          //17%
+    3607 * RECAL_TIME,          //18%
+    3566 * RECAL_TIME,          //19%
+    3526 * RECAL_TIME,          //20%
+    3487 * RECAL_TIME,          //21%
+    3448 * RECAL_TIME,          //22%
+    3410 * RECAL_TIME,          //23%
+    3372 * RECAL_TIME,          //24%
+    3335 * RECAL_TIME,          //25%
+    3298 * RECAL_TIME,          //26%
+    3262 * RECAL_TIME,          //27%
+    3227 * RECAL_TIME,          //28%
+    3191 * RECAL_TIME,          //29%
+    3157 * RECAL_TIME,          //30%
+    3122 * RECAL_TIME,          //31%
+    3088 * RECAL_TIME,          //32%
+    3054 * RECAL_TIME,          //33%
+    3020 * RECAL_TIME,          //34%
+    2986 * RECAL_TIME,          //35%
+    2953 * RECAL_TIME,          //36%
+    2920 * RECAL_TIME,          //37%
+    2887 * RECAL_TIME,          //38%
+    2854 * RECAL_TIME,          //39%
+    2822 * RECAL_TIME,          //40%
+    2789 * RECAL_TIME,          //41%
+    2757 * RECAL_TIME,          //42%
+    2725 * RECAL_TIME,          //43%
+    2693 * RECAL_TIME,          //44%
+    2661 * RECAL_TIME,          //45%
+    2629 * RECAL_TIME,          //46%
+    2597 * RECAL_TIME,          //47%
+    2565 * RECAL_TIME,          //48%
+    2533 * RECAL_TIME,          //49%
+    2501 * RECAL_TIME,          //50%
+    2469 * RECAL_TIME,          //51%
+    2438 * RECAL_TIME,          //52%
+    2406 * RECAL_TIME,          //53%
+    2374 * RECAL_TIME,          //54%
+    2342 * RECAL_TIME,          //55%
+    2310 * RECAL_TIME,          //56%
+    2278 * RECAL_TIME,          //57%
+    2245 * RECAL_TIME,          //58%
+    2213 * RECAL_TIME,          //59%
+    2181 * RECAL_TIME,          //60%
+    2148 * RECAL_TIME,          //61%
+    2115 * RECAL_TIME,          //62%
+    2082 * RECAL_TIME,          //63%
+    2049 * RECAL_TIME,          //64%
+    2016 * RECAL_TIME,          //65%
+    1983 * RECAL_TIME,          //66%
+    1949 * RECAL_TIME,          //67%
+    1915 * RECAL_TIME,          //68%
+    1881 * RECAL_TIME,          //69%
+    1846 * RECAL_TIME,          //70%
+    1811 * RECAL_TIME,          //71%
+    1776 * RECAL_TIME,          //72%
+    1740 * RECAL_TIME,          //73%
+    1704 * RECAL_TIME,          //74%
+    1668 * RECAL_TIME,          //75%
+    1630 * RECAL_TIME,          //76%
+    1593 * RECAL_TIME,          //77%
+    1555 * RECAL_TIME,          //78%
+    1516 * RECAL_TIME,          //79%
+    1477 * RECAL_TIME,          //80%
+    1436 * RECAL_TIME,          //81%
+    1395 * RECAL_TIME,          //82%
+    1353 * RECAL_TIME,          //83%
+    1311 * RECAL_TIME,          //84%
+    1267 * RECAL_TIME,          //85%
+    1221 * RECAL_TIME,          //86%
+    1175 * RECAL_TIME,          //87%
+    1127 * RECAL_TIME,          //88%
+    1077 * RECAL_TIME,          //89%
+    1025 * RECAL_TIME,          //90%
+    970 * RECAL_TIME,           //91%
+    913 * RECAL_TIME,           //92%
+    853 * RECAL_TIME,           //93%
+    788 * RECAL_TIME,           //94%
+    718 * RECAL_TIME,           //95%
+    641 * RECAL_TIME,           //96%
+    554 * RECAL_TIME,           //97%
+    452 * RECAL_TIME,           //98%
+    319 * RECAL_TIME,           //99%
+    1 * RECAL_TIME             //100%  50 а не 0 для надежного открытия симистора
 };
 
 PGM(TTempZones gIronTempZones[]) = {
@@ -123,7 +126,7 @@ PGM(TTempZones gIronTempZones[]) = {
 uint16_t adc_read(uint8_t adc_pin)
 {
     ADMUX = (ADMUX & 0b011111000) | adc_pin;
-    _delay_us(125);
+    _delay_us(10);
 
     ADCSRA |= _BV(ADSC);         // start single convertion
     loop_until_bit_is_set(ADCSRA,ADSC); // Wait for the AD conversion to complete
@@ -148,7 +151,7 @@ uint16_t find_temp(uint16_t adc, const TTempZones* tempzones, uint8_t count) {
 uint8_t check_phase(uint8_t flag) {
     uint8_t st;
 
-    ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
+    ATOMIC_BLOCK(ATOMIC_FORCEON) {
         st = g_phase & flag;
         g_phase &= ~ flag;
     }
@@ -167,13 +170,18 @@ PT_THREAD(iron_pt_manage(struct pt *pt)) {
         volatile TIron *iron = &g_data.iron;
 
         uint16_t adc = adc_read(ADC_PIN_IRON);
-        if(adc != iron->adc) {
+        if(1 || adc != iron->adc) {
             iron->adc = adc;
-            iron->temp = iron->temp_need + 1;//find_temp(adc, gIronTempZones, sizeof(gIronTempZones));
+
+            if(iron->temp < iron->temp_need) iron->temp++;
+            else
+            if(iron->temp > iron->temp_need) iron->temp--;
+
+            //iron->temp = find_temp(adc, gIronTempZones, sizeof(gIronTempZones));
 
             g_data.update_screen |= UPDATE_SCREEN_VALS;
         }
-/*
+
         volatile TPid *pid = &iron->pid;
 
         pid->error = iron->temp_need - iron->temp;
@@ -192,13 +200,12 @@ PT_THREAD(iron_pt_manage(struct pt *pt)) {
 
         pid->power = (uint16_t)pid->power_tmp;
 
-        uint16_t tmp = pgm_read_word(&gPowerMas[pid->power]);
-
-        OCR1AH = tmp >> 8;
-        OCR1AL = tmp;
+        ATOMIC_BLOCK(ATOMIC_FORCEON) {
+            OCR1A = pgm_read_word(&gPowerMas[pid->power]);
+        }
 
         g_data.update_screen |= UPDATE_SCREEN_VALS;
-        */
+
     }
 
     PT_END(pt);
@@ -210,7 +217,7 @@ void iron_init_mod(void) {
     g_data.iron.on = 0;
     g_data.iron.temp_need = IRON_TEMP_MIN;
 
-    g_data.iron.pid.power = 5000;
+    g_data.iron.pid.power = 0;
 }
 
 
@@ -219,8 +226,10 @@ void iron_init_mod(void) {
 ISR(INT2_vect) {
     static uint8_t phase = 0;
 
-    TCNT1H = 0x00; //Сбрасываем таймер времени
-    TCNT1L = 0x00; //перед включением симистора в 0
+    if(g_data.iron.on) {
+        TCNT1 = 0x00;
+        TCCR1B |= TIMER1A_PRESCALE; //вкл таймер 1
+    }
 
     if(++phase == PID_STEP) {
         phase = 0;
@@ -230,9 +239,13 @@ ISR(INT2_vect) {
 }
 
 ISR(TIMER1_COMPA_vect) {
-    if(!g_data.iron.on) return;
 
-    ON(P_IRON_PWM);           // Вкл сим
-    _delay_us(100);          // Длительность импульса вкл сим
-    OFF(P_IRON_PWM);           // Выкл сим
+    //выкл таймер 1
+    TCCR1B &= ~TIMER1_PRESCALE_OFF;
+
+    if(g_data.iron.on) {
+        ON(P_IRON_PWM);
+        _delay_us(SIMISTOR_TIME_ON);
+        OFF(P_IRON_PWM);
+    }
 }
