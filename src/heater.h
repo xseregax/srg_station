@@ -74,6 +74,9 @@ x = (y - y0) * a + x0
 void heater_iron_on(void);
 void heater_iron_off(void);
 
+void heater_fen_on(void);
+void heater_fen_off(void);
+
 void heater_init_mod(void);
 PT_THREAD(heater_pt_manage(struct pt *pt));
 

@@ -40,9 +40,10 @@
 #define PN_DDR(x) PN_DDR_(x)
 
 
+#define AVR_RESET do { cli(); wdt_reset(); wdt_enable( WDTO_15MS ); } while (1)
 
-
-
+#define _ON 1
+#define _OFF 0
 
 //список элементов в меню
 //uses for TGlobalData_t.menu
@@ -113,81 +114,6 @@ typedef struct {
 
 
 volatile TGlobalData g_data;
-
-
-
-
-
-
-
-
-/*
-//отправить по уарту данные о стеке
-#if 0
-    #define CALC_STACK do { \
-        uint8_t i; char buf[16]; \
-        for(i = 0; i < PROCESS_COUNT; i++) { \
-            uint8_t stack = get_proc(i)->stack_slack() * sizeof(stack_item_t); \
-            sprintf(buf, "Pr:%d | S:%d\n", \
-                scmRTOS_PRIORITY_ORDER == 0 ? i : PROCESS_COUNT - i, stack); \
-            gUART.send(buf); \
-        } } while(0)
-#else
-    #define CALC_STACK ;
-#endif
-
-*/
-
-
-
-/*
-
-
-
-//
-struct TCurrStates {
-    TMenuStates menu; //текущий пункт меню
-
-    unsigned changed_menu: 1; //перерисовать меню
-
-    uint8_t temp; //для временного юзания
-
-    uint8_t phase; //счетчик полупериодов
-
-    unsigned iron_on: 1; //вкл-выкл паяльника
-    uint16_t iron_adc; //последние значение с adc
-    uint16_t iron_temp; //текущая температура тены
-    uint16_t iron_temp_need; //требуемая температура
-
-    uint16_t iron_power; //расчетная мощность
-    int32_t iron_error; // iron_temp_need - iron_temp
-    int32_t iron_error_old; //предыдущее значение error
-    int32_t iron_integral; //сумма ошибок
-    float iron_power_tmp; //расчетное значение мощности
-
-
-    unsigned fen_on: 1; //вкл-выкл паяльника
-    unsigned fen_off: 1; //нужно отключить (для охлаждения до 50гр)
-    uint16_t fen_adc; //последние значение с adc
-    uint16_t fen_temp; //текущая температура тены
-    uint16_t fen_temp_need; //требуемая температура
-    uint16_t fen_pow; //расчетная мощность
-
-    unsigned fan_on: 1; //вкл-выкл кулера в фене
-    uint16_t fan_rpm; //текущие обороты
-    uint16_t fan_rpm_need; //требуемые обороты
-    uint16_t fan_pwm; //шим на кулер
-
-    unsigned drel_on: 1; //вкл-выкл дрели
-    uint16_t drel_adc; //последние значение с adc
-    uint16_t drel_rpm; //текущие обороты
-    uint16_t drel_rpm_need; //требуемые обороты
-    uint16_t drel_pwm; //шим на дрель
-};
-
-
-*/
-
 
 
 #endif // COMMON_H

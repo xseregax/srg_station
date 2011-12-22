@@ -131,7 +131,12 @@ uint16_t adc_read(uint8_t adc_pin)
     ADCSRA |= _BV(ADSC);         // start single convertion
     loop_until_bit_is_set(ADCSRA,ADSC); // Wait for the AD conversion to complete
 
-    return ADCW;
+    uint16_t temp;
+
+    ATOMIC_BLOCK(ATOMIC_FORCEON) {
+        temp = ADCW;
+    }
+    return temp;
 }
 
 //конверт adc в темп по калиброванным значениям
@@ -210,15 +215,29 @@ int16_t pid_Controller(uint16_t temp_need, uint16_t temp_curr, volatile TPid *pi
 
 
 void heater_iron_on(void) {
+    if(g_data.iron.on == _ON) return;
+
     memset((void*) &g_data.iron, 0, sizeof(TIron));
 
     g_data.iron.temp_need = IRON_TEMP_MIN;
 
-    g_data.iron.on = 1;
+    g_data.iron.on = _ON;
 }
 
 void heater_iron_off(void) {
-    g_data.iron.on = 0;
+    if(g_data.iron.on == _OFF) return;
+
+    g_data.iron.on = _OFF;
+}
+
+void heater_fen_on(void) {
+    //if(g_data.fen.on  == _ON) return;
+
+}
+
+void heater_fen_off(void) {
+    //if(g_data.fen.on == _OFF) return;
+
 }
 
 PT_THREAD(iron_pt_manage(struct pt *pt)) {
@@ -228,7 +247,7 @@ PT_THREAD(iron_pt_manage(struct pt *pt)) {
 
     TIMER_INIT(timer, PID_STEP);
     for(;;) {
-        PT_WAIT_UNTIL(pt, g_data.iron.on && TIMER_ENDED(timer));
+        PT_WAIT_UNTIL(pt, g_data.iron.on == _ON && TIMER_ENDED(timer));
         TIMER_INIT(timer, PID_STEP);
 
         volatile TIron *iron = &g_data.iron;
@@ -299,7 +318,7 @@ void heater_init_mod(void) {
 ISR(INT2_vect) {
     //static uint8_t phase = 0;
 
-    if(g_data.iron.on) {
+    if(g_data.iron.on == _ON) {
         TCNT1 = 0x00;
         TCCR1B |= TIMER1A_PRESCALE; //вкл таймер 1
     }
@@ -316,7 +335,7 @@ ISR(TIMER1_COMPA_vect) {
     //выкл таймер 1
     TCCR1B &= ~TIMER1_PRESCALE_OFF;
 
-    if(g_data.iron.on) {
+    if(g_data.iron.on == _ON) {
        ON(P_IRON_PWM);
        _delay_us(SIMISTOR_TIME_ON);
        OFF(P_IRON_PWM);

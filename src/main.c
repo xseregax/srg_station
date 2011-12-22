@@ -17,8 +17,6 @@
 volatile TGlobalData g_data;
 
 
-
-
 inline void init_global_data(void) {
     memset((void *)&g_data, 0, sizeof(TGlobalData));
 
@@ -26,7 +24,7 @@ inline void init_global_data(void) {
 }
 
 
-int main(void) {
+uint8_t main(void) {
     //запрещаем прерывания, откл собаку
     cli();
     wdt_reset();
@@ -126,3 +124,4 @@ int main(void) {
     }
 
 }
+

@@ -19,6 +19,4 @@ inline void ui_init_lcd(void) {
 }
 
 
-
-
 #endif // UI_H

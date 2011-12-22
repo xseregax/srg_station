@@ -7,153 +7,137 @@ volatile TActionCmd g_action_cmd;
 //обнулить состояние текущей комманды
 inline void actions_init_cmd() {
     //memset((void*)&g_action_cmd, 0, sizeof(TActionCmd));
-    g_action_cmd.active = 0;
+    g_action_cmd.active = _OFF;
 }
 
-inline void menu_buttons_select(volatile const TActionCmd *action) {
 
-    if(action->name == NM_ENCROTATE) {
+void iron_dec_temp(void) {
+    volatile TIron *iron = &g_data.iron;
 
-        switch(action->action) {
-        case ACT_ROTATE_LEFT:
-            if(g_data.temp == 0)
-                g_data.temp = 2;
-            else
-                g_data.temp -= 1;
-            break;
-
-        case ACT_ROTATE_RIGHT:
-            if(g_data.temp == 2)
-                g_data.temp = 0;
-            else
-                g_data.temp += 1;
-            break;
-
-        default:
-            return;
-        }
-    }
+    if(iron->temp_need > IRON_TEMP_MIN + IRON_TEMP_STEP)
+        iron->temp_need -= IRON_TEMP_STEP;
     else
-    if(action->name == NM_BUTTON2) {
+        iron->temp_need = IRON_TEMP_MIN;
 
-        switch(action->action) {
-        case ACT_PUSH: {
-            switch(g_data.temp) {
-                case 1:
-                    g_data.menu = MENU_FEN;
-                    //g_data.fen.on = 1;
-                    g_data.iron.on = 0;
-                    //g_data.drel.on = 0;
-                    break;
-                case 2:
-                    g_data.menu = MENU_DREL;
-                    //g_data.drel.on = 1;
-                    g_data.iron.on = 0;
-                    //g_data.fen.off = 1;
-                    break;
-                default:
-                    g_data.menu = MENU_IRON;
-                    g_data.iron.on = 1;
-                    //g_data.drel.on = 0;
-                    //g_data.fen.off = 1;
-                    break;
-            }
-            g_data.update_screen |= UPDATE_SCREEN_ALL;
-            break;
-        }
-        default:
-            return;
-        }
-    }
-    else
-    if(action->name == NM_BUTTON1) {
-        switch(action->action) {
-        case ACT_PUSH:
-
-            cli();
-            wdt_reset();
-            wdt_enable( WDTO_15MS );
-            while (1) { }
-
-            break;
-
-        default:
-            return;
-        }
-
-    }
-    else
-        return;
-
-    g_data.update_screen |= UPDATE_SCREEN_VALS;
+    g_data.update_screen |= UPDATE_SCREEN_ALL;
 }
 
-inline void menu_buttons_iron(volatile const TActionCmd *action) {
+void iron_inc_temp(void) {
+    volatile TIron *iron = &g_data.iron;
 
-    if(action->name == NM_ENCROTATE) {
-
-        switch(action->action) {
-        case ACT_ROTATE_LEFT:
-
-            if(g_data.iron.temp_need > IRON_TEMP_MIN + IRON_TEMP_STEP)
-                g_data.iron.temp_need -= IRON_TEMP_STEP;
-            else
-                g_data.iron.temp_need = IRON_TEMP_MIN;
-
-            break;
-
-        case ACT_ROTATE_RIGHT:
-
-            if(g_data.iron.temp_need < IRON_TEMP_MAX - IRON_TEMP_STEP)
-                g_data.iron.temp_need += IRON_TEMP_STEP;
-            else
-                g_data.iron.temp_need = IRON_TEMP_MAX;
-
-            break;
-
-        default:
-            return;
-        }
-
-    }
+    if(iron->temp_need < IRON_TEMP_MAX - IRON_TEMP_STEP)
+        iron->temp_need += IRON_TEMP_STEP;
     else
-    if(action->name == NM_ENCBUTTON) {
+        iron->temp_need = IRON_TEMP_MAX;
 
-        switch(action->action) {
-        case ACT_PUSH_LONG:
-
-            g_data.menu = MENU_SELECT;
-            g_data.temp = 0;
-            g_data.update_screen |= UPDATE_SCREEN_ALL;
-            g_data.iron.on = 0;
-            break;
-
-        default:
-            return;
-        }
-    }
-    else
-    if(action->name == NM_BUTTON1) {
-        switch(action->action) {
-        case ACT_PUSH:
-
-            cli();
-            wdt_reset();
-            wdt_enable( WDTO_15MS );
-            while (1) { }
-
-            break;
-
-        default:
-            return;
-        }
-
-    }
-    else
-        return;
-
-    g_data.update_screen |= UPDATE_SCREEN_VALS;
+    g_data.update_screen |= UPDATE_SCREEN_ALL;
 }
+
+void menu_select_main(void) {
+    g_data.menu = MENU_SELECT;
+    g_data.temp = 0;
+
+    heater_iron_off();
+    heater_fen_off();
+
+    g_data.update_screen |= UPDATE_SCREEN_ALL;
+}
+
+void avr_rest(void) {
+    AVR_RESET;
+}
+
+void menu_select_rotate_left(void) {
+    if(g_data.temp == 0)
+        g_data.temp = 2;
+    else
+        g_data.temp -= 1;
+}
+
+void menu_select_rotate_right(void) {
+    if(g_data.temp == 2)
+        g_data.temp = 0;
+    else
+        g_data.temp += 1;
+}
+
+void menu_select_mode(void) {
+    switch(g_data.temp) {
+        case 1:
+            g_data.menu = MENU_FEN;
+
+            heater_iron_off();
+            heater_fen_on();
+            break;
+        case 2:
+            g_data.menu = MENU_DREL;
+
+            break;
+        default:
+            g_data.menu = MENU_IRON;
+
+            heater_iron_on();
+            heater_fen_off();
+            break;
+    }
+
+}
+
+
+PGM(TVFunc actions_acts[][7][5][4]) = {
+    NAME_BT1_BT2_BT3_BT4_BTE_ENCR_BT1ENC(
+        ACTS_NONE_PUSH_PUSHL_ROTL_ROTR( //NAME_BUTTON1
+            MENU_SEL_IRON_FEN_DRL(0, 0, 0, 0), //ACT_NONE
+            MENU_SEL_IRON_FEN_DRL(avr_rest, avr_rest, avr_rest, avr_rest), //ACT_PUSH
+            MENU_SEL_IRON_FEN_DRL(0, 0, 0, 0), //ACT_PUSH_LONG
+            MENU_SEL_IRON_FEN_DRL(0, 0, 0, 0), //ACT_ROTATE_LEFT
+            MENU_SEL_IRON_FEN_DRL(0, 0, 0, 0)  //ACT_ROTATE_RIGHT
+        ),
+        ACTS_NONE_PUSH_PUSHL_ROTL_ROTR( //NAME_BUTTON2
+            MENU_SEL_IRON_FEN_DRL(0, 0, 0, 0), //ACT_NONE
+            MENU_SEL_IRON_FEN_DRL(menu_select_mode, 0, 0, 0), //ACT_PUSH
+            MENU_SEL_IRON_FEN_DRL(0, 0, 0, 0), //ACT_PUSH_LONG
+            MENU_SEL_IRON_FEN_DRL(0, 0, 0, 0), //ACT_ROTATE_LEFT
+            MENU_SEL_IRON_FEN_DRL(0, 0, 0, 0)  //ACT_ROTATE_RIGHT
+        ),
+        ACTS_NONE_PUSH_PUSHL_ROTL_ROTR( //NAME_BUTTON3
+            MENU_SEL_IRON_FEN_DRL(0, 0, 0, 0), //ACT_NONE
+            MENU_SEL_IRON_FEN_DRL(0, 0, 0, 0), //ACT_PUSH
+            MENU_SEL_IRON_FEN_DRL(0, 0, 0, 0), //ACT_PUSH_LONG
+            MENU_SEL_IRON_FEN_DRL(0, 0, 0, 0), //ACT_ROTATE_LEFT
+            MENU_SEL_IRON_FEN_DRL(0, 0, 0, 0)  //ACT_ROTATE_RIGHT
+        ),
+        ACTS_NONE_PUSH_PUSHL_ROTL_ROTR( //NAME_BUTTON4
+            MENU_SEL_IRON_FEN_DRL(0, 0, 0, 0), //ACT_NONE
+            MENU_SEL_IRON_FEN_DRL(0, 0, 0, 0), //ACT_PUSH
+            MENU_SEL_IRON_FEN_DRL(0, 0, 0, 0), //ACT_PUSH_LONG
+            MENU_SEL_IRON_FEN_DRL(0, 0, 0, 0), //ACT_ROTATE_LEFT
+            MENU_SEL_IRON_FEN_DRL(0, 0, 0, 0)  //ACT_ROTATE_RIGHT
+        ),
+        ACTS_NONE_PUSH_PUSHL_ROTL_ROTR( //NAME_BUTTON_ENC
+            MENU_SEL_IRON_FEN_DRL(0, 0, 0, 0), //ACT_NONE
+            MENU_SEL_IRON_FEN_DRL(0, 0, 0, 0), //ACT_PUSH
+            MENU_SEL_IRON_FEN_DRL(0, menu_select_main, 0, 0), //ACT_PUSH_LONG
+            MENU_SEL_IRON_FEN_DRL(menu_select_rotate_left, iron_dec_temp, 0, 0), //ACT_ROTATE_LEFT
+            MENU_SEL_IRON_FEN_DRL(menu_select_rotate_right, iron_inc_temp, 0, 0)  //ACT_ROTATE_RIGHT
+        ),
+        ACTS_NONE_PUSH_PUSHL_ROTL_ROTR( //NAME_BUTTON_ENCROTATE
+            MENU_SEL_IRON_FEN_DRL(0, 0, 0, 0), //ACT_NONE
+            MENU_SEL_IRON_FEN_DRL(0, 0, 0, 0), //ACT_PUSH
+            MENU_SEL_IRON_FEN_DRL(0, 0, 0, 0), //ACT_PUSH_LONG
+            MENU_SEL_IRON_FEN_DRL(0, 0, 0, 0), //ACT_ROTATE_LEFT
+            MENU_SEL_IRON_FEN_DRL(0, 0, 0, 0)  //ACT_ROTATE_RIGHT
+        ),
+        ACTS_NONE_PUSH_PUSHL_ROTL_ROTR( //NAME_BUTTON1_ENC
+            MENU_SEL_IRON_FEN_DRL(0, 0, 0, 0), //ACT_NONE
+            MENU_SEL_IRON_FEN_DRL(0, 0, 0, 0), //ACT_PUSH
+            MENU_SEL_IRON_FEN_DRL(0, 0, 0, 0), //ACT_PUSH_LONG
+            MENU_SEL_IRON_FEN_DRL(0, 0, 0, 0), //ACT_ROTATE_LEFT
+            MENU_SEL_IRON_FEN_DRL(0, 0, 0, 0)  //ACT_ROTATE_RIGHT
+        )
+    )
+};
+
 
 PT_THREAD(actions_pt_check_commands(struct pt *pt)) {
     PT_BEGIN(pt);
@@ -161,26 +145,11 @@ PT_THREAD(actions_pt_check_commands(struct pt *pt)) {
     for(;;) {
         PT_WAIT_UNTIL(pt, g_action_cmd.active);
 
-        switch(g_data.menu) {
-        case MENU_IRON:
-            menu_buttons_iron(&g_action_cmd);
-            break;
-        case MENU_FEN:
-            //menu_buttons_fen(&action);
-            break;
-        case MENU_DREL:
-            //menu_buttons_drel(&action);
-            break;
-        case MENU_SELECT:
-            menu_buttons_select(&g_action_cmd);
-            break;
-        default:
-            break;
-        }
+        g_action_cmd.active = _OFF;
 
-        g_action_cmd.active = 0;
+        TVFunc *cmd = (TVFunc*)pgm_read_word(&actions_acts[g_action_cmd.name][g_action_cmd.action][g_data.menu]);
+        if(cmd) (*cmd)();
     }
-
 
     PT_END(pt);
 }
