@@ -32,7 +32,7 @@ int main(void) {
     wdt_reset();
     wdt_disable();
 
-    _delay_ms(1);
+    _delay_ms(100);
 
     //отключаем jtag
     MCUCSR |= _BV(JTD);
@@ -78,27 +78,27 @@ int main(void) {
     //инитим уарт
     uart_init_uart();
 
-    _delay_ms(1);
-
-    //заставку на экран
-    ui_hello_msg();
-
     init_global_data();
 
-    struct pt pt_iron_manage,
+    struct pt pt_heater_manage,
             pt_input_buttons, pt_actions_actions, pt_ui_display, pt_uart_receive;
 
-    PT_INIT(&pt_iron_manage);
+    PT_INIT(&pt_heater_manage);
     PT_INIT(&pt_input_buttons);
     PT_INIT(&pt_actions_actions);
     PT_INIT(&pt_ui_display);
     PT_INIT(&pt_uart_receive);
 
-    iron_init_mod();
+    heater_init_mod();
     actions_init_mod();
     input_init_mod();
     ui_init_mod();
     uart_init_mod();
+
+    _delay_ms(100);
+
+    //заставку на экран
+    ui_hello_msg();
 
     //вкл прерывания и собаки
     wdt_reset();
@@ -107,7 +107,7 @@ int main(void) {
 
     while(1) {
         //
-        iron_pt_manage(&pt_iron_manage);
+        heater_pt_manage(&pt_heater_manage);
 
         //проверим нажатие кнопок
         input_pt_check_inputs(&pt_input_buttons);

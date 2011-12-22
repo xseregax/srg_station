@@ -75,35 +75,25 @@ typedef struct {
 #define UPDATE_SCREEN_ALL (UPDATE_SCREEN_MENU|UPDATE_SCREEN_VALS)
 
 typedef struct {
-    unsigned init: 1;
+    int16_t temp_last;
+    int32_t error_sum;
 
-    // Last process value, used to find derivative of process value.
-    int16_t lastProcessValue;
-    // Summation of errors, used for integrate calculations
-    int32_t sumError;
-    // The Proportional tuning constant, multiplied with SCALING_FACTOR
-    int16_t P_Factor;
-    // The Integral tuning constant, multiplied with SCALING_FACTOR
-    int16_t I_Factor;
-    // The Derivative tuning constant, multiplied with SCALING_FACTOR
-    int16_t D_Factor;
-    // Maximum allowed error, avoid overflow
     int16_t maxError;
-    // Maximum allowed sumerror, avoid overflow
     int32_t maxSumError;
 
-    uint16_t power;
 } TPid;
 
-#define MAX_INT         INT16_MAX
-#define MAX_LONG        INT32_MAX
-#define MAX_I_TERM      (MAX_LONG / 2)
 
 typedef struct {
     unsigned on: 1; //вкл-выкл паяльника
+
     uint16_t adc; //последние значение с adc
+
+    uint16_t power; //текущая мощность
     uint16_t temp; //текущая температура тены
     uint16_t temp_need; //требуемая температура
+
+    uint16_t out1;
 
     TPid pid;
 } TIron;

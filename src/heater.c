@@ -147,7 +147,7 @@ uint16_t find_temp(uint16_t adc, const TTempZones* tempzones, uint8_t count) {
 
     return temp;
 }
-
+/*
 uint8_t check_phase(uint8_t flag) {
     uint8_t st;
 
@@ -158,69 +158,67 @@ uint8_t check_phase(uint8_t flag) {
 
     return st;
 }
+*/
 
-void pid_Init(int16_t p_factor, int16_t i_factor, int16_t d_factor, volatile TPid *pid)
-// Set up PID controller parameters
-{
-  // Start values for PID controller
-  pid->sumError = 0;
-  pid->lastProcessValue = 0;
-  // Tuning constants for PID loop
-  pid->P_Factor = p_factor;
-  pid->I_Factor = i_factor;
-  pid->D_Factor = d_factor;
-  // Limits to avoid overflow
-  pid->maxError = MAX_INT / (pid->P_Factor + 1);
-  pid->maxSumError = MAX_I_TERM / (pid->I_Factor + 1);
+int16_t pid_Controller(uint16_t temp_need, uint16_t temp_curr, volatile TPid *pid_st) {
+
+    uint16_t ret, p_term;
+    int16_t error, i_term, temp, d_term;
+
+    error = temp_need - temp_curr;
+
+    if (error >= IRON_PID_MAX_ERROR) {
+        p_term = IRON_PID_MAX;
+    }
+    else if (error <= IRON_PID_MIN) {
+        p_term = IRON_PID_MIN;
+    }
+    else {
+        p_term = IRON_PID_KP * error;
+    }
+
+    temp = pid_st->error_sum + error;
+
+    if(temp > IRON_PID_MAX_SUM_ERROR) {
+        i_term = IRON_PID_IMAX;
+
+        pid_st->error_sum = IRON_PID_MAX_SUM_ERROR;
+    }
+    else if(temp < -IRON_PID_MAX_SUM_ERROR) {
+        i_term = -IRON_PID_IMAX;
+
+        pid_st->error_sum = -IRON_PID_MAX_SUM_ERROR;
+    }
+    else {
+        pid_st->error_sum = temp;
+
+        i_term = IRON_PID_KI * pid_st->error_sum;
+    }
+
+    d_term = IRON_PID_KD * (pid_st->temp_last - temp_curr);
+
+    pid_st->temp_last = temp_curr;
+
+    ret = p_term + i_term + d_term;
+
+    if(ret > IRON_PID_MAX) {
+        ret = IRON_PID_MAX;
+    }
+
+    return ret / SCALING_FACTOR;
 }
 
-int16_t pid_Controller(int16_t setPoint, int16_t processValue, volatile TPid *pid_st)
-{
-  int16_t error, p_term, d_term;
-  int32_t i_term, ret, temp;
 
-  error = setPoint - processValue;
+void heater_iron_on(void) {
+    memset((void*) &g_data.iron, 0, sizeof(TIron));
 
-  // Calculate Pterm and limit error overflow
-  if (error > pid_st->maxError){
-    p_term = MAX_INT;
-  }
-  else if (error < -pid_st->maxError){
-    p_term = -MAX_INT;
-  }
-  else{
-    p_term = pid_st->P_Factor * error;
-  }
+    g_data.iron.temp_need = IRON_TEMP_MIN;
 
-  // Calculate Iterm and limit integral runaway
-  temp = pid_st->sumError + error;
-  if(temp > pid_st->maxSumError){
-    i_term = MAX_I_TERM;
-    pid_st->sumError = pid_st->maxSumError;
-  }
-  else if(temp < -pid_st->maxSumError){
-    i_term = -MAX_I_TERM;
-    pid_st->sumError = -pid_st->maxSumError;
-  }
-  else{
-    pid_st->sumError = temp;
-    i_term = pid_st->I_Factor * pid_st->sumError;
-  }
+    g_data.iron.on = 1;
+}
 
-  // Calculate Dterm
-  d_term = pid_st->D_Factor * (pid_st->lastProcessValue - processValue);
-
-  pid_st->lastProcessValue = processValue;
-
-  ret = (p_term + i_term + d_term) / SCALING_FACTOR;
-  if(ret > MAX_INT){
-    ret = MAX_INT;
-  }
-  else if(ret < -MAX_INT){
-    ret = -MAX_INT;
-  }
-
-  return((int16_t)ret);
+void heater_iron_off(void) {
+    g_data.iron.on = 0;
 }
 
 PT_THREAD(iron_pt_manage(struct pt *pt)) {
@@ -228,12 +226,10 @@ PT_THREAD(iron_pt_manage(struct pt *pt)) {
 
     PT_BEGIN(pt);
 
-    TIMER_INIT(timer, SCALING_FACTOR);
+    TIMER_INIT(timer, PID_STEP);
     for(;;) {
         PT_WAIT_UNTIL(pt, g_data.iron.on && TIMER_ENDED(timer));
-        TIMER_INIT(timer, SCALING_FACTOR);
-
-        //PT_WAIT_UNTIL(pt, g_data.iron.on && check_phase(PHASE_IRON));
+        TIMER_INIT(timer, PID_STEP);
 
         volatile TIron *iron = &g_data.iron;
 
@@ -250,53 +246,18 @@ PT_THREAD(iron_pt_manage(struct pt *pt)) {
             g_data.update_screen |= UPDATE_SCREEN_VALS;
         }
 
-        if(!iron->pid.init)
-            pid_Init(IRON_KP * SCALING_FACTOR, IRON_KI * SCALING_FACTOR , IRON_KD * SCALING_FACTOR, &iron->pid);
+        uint16_t pow = pid_Controller(iron->temp_need, iron->temp, &iron->pid);
 
-        int16_t pow = pid_Controller(iron->temp_need, iron->temp, &iron->pid);
+        if(pow != iron->power) {
 
-        float x = (100.0 / UINT16_MAX);
-        uint16_t pow2 =  x * (pow + MAX_INT) ;
+            ATOMIC_BLOCK(ATOMIC_FORCEON) {
+                OCR1A = pgm_read_word(&gPowerMas[pow]);
+            }
 
-        if(pow2 <= IRON_MIN_POWER) pow2 = IRON_MIN_POWER;
-        if(pow2 > IRON_MAX_POWER) pow2 = IRON_MAX_POWER;
+            iron->power = pow;
 
-        iron->pid.power = pow2;
-
-        ATOMIC_BLOCK(ATOMIC_FORCEON) {
-            OCR1A = pgm_read_word(&gPowerMas[iron->pid.power]);
+            g_data.update_screen |= UPDATE_SCREEN_VALS;
         }
-
-
-/*
-        volatile TPid *pid = &iron->pid;
-
-        pid->error = iron->temp_need - iron->temp;
-
-        pid->integral += pid->error;
-        if(pid->integral > IRON_PID_IMAX)
-            pid->integral = IRON_PID_IMAX;
-        else
-            if(pid->integral < IRON_PID_IMIN)
-                pid->integral = IRON_PID_IMIN;
-
-        pid->power_tmp =
-                IRON_KP * pid->error +
-                IRON_KI * pid->integral -
-                IRON_KD * (pid->error - pid->error_old);
-
-        pid->error_old = pid->error;
-
-        if(pid->power_tmp < IRON_MIN_POWER) pid->power_tmp = IRON_MIN_POWER;
-        if(pid->power_tmp > IRON_MAX_POWER) pid->power_tmp = IRON_MAX_POWER;
-
-        pid->power = (uint16_t)pid->power_tmp;
-
-        ATOMIC_BLOCK(ATOMIC_FORCEON) {
-            OCR1A = pgm_read_word(&gPowerMas[pid->power]);
-        }
-*/
-        g_data.update_screen |= UPDATE_SCREEN_VALS;
 
     }
 
@@ -304,30 +265,50 @@ PT_THREAD(iron_pt_manage(struct pt *pt)) {
 }
 
 
-void iron_init_mod(void) {
+PT_THREAD(fen_pt_manage(struct pt *pt)) {
+    PT_BEGIN(pt);
+    PT_END(pt);
+}
 
-    g_data.iron.on = 0;
-    g_data.iron.temp_need = IRON_TEMP_MIN;
 
-    g_data.iron.pid.power = 0;
+PT_THREAD(heater_pt_manage(struct pt *pt)) {
+    static struct pt pt_iron, pt_fen;
+
+    PT_BEGIN(pt);
+
+    PT_INIT(&pt_iron);
+    PT_INIT(&pt_fen);
+
+    PT_WAIT_THREAD(pt,
+           iron_pt_manage(&pt_iron) &
+           fen_pt_manage(&pt_fen)
+          );
+
+    PT_END(pt);
+}
+
+
+void heater_init_mod(void) {
+
+    heater_iron_off();
 }
 
 
 
 //ZCD
 ISR(INT2_vect) {
-    static uint8_t phase = 0;
+    //static uint8_t phase = 0;
 
     if(g_data.iron.on) {
         TCNT1 = 0x00;
         TCCR1B |= TIMER1A_PRESCALE; //вкл таймер 1
     }
 
-    if(++phase == PID_STEP) {
+    /*if(++phase == 10) {
         phase = 0;
 
         g_phase |= PHASE_ALL;
-    }
+    }*/
 }
 
 ISR(TIMER1_COMPA_vect) {
@@ -336,8 +317,8 @@ ISR(TIMER1_COMPA_vect) {
     TCCR1B &= ~TIMER1_PRESCALE_OFF;
 
     if(g_data.iron.on) {
-        ON(P_IRON_PWM);
-        _delay_us(SIMISTOR_TIME_ON);
-        OFF(P_IRON_PWM);
+       ON(P_IRON_PWM);
+       _delay_us(SIMISTOR_TIME_ON);
+       OFF(P_IRON_PWM);
     }
 }

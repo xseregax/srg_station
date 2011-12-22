@@ -74,7 +74,7 @@ inline void menu_display_iron(void) {
         lcd_str(buf);
 
         lcd_xy(1, 0);
-        sprintf(buf, "%04d / %04d", g_data.iron.adc, g_data.iron.pid.power);
+        sprintf(buf, "%04d / %04d %%", g_data.iron.adc, g_data.iron.power);
         lcd_str(buf);
 
         //lcd_xy(1, 15);

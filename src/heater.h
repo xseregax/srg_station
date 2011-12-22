@@ -4,18 +4,25 @@
 
 #define SIMISTOR_TIME_ON 8
 
-#define PID_STEP 10 //интервал измерений, PID_STEP (1 = 10msec (1/50HZ/2), based on ZCD)
+#define PID_STEP 500 //интервал измерений, PID_STEP (1 = 10msec (1/50HZ/2), based on ZCD)
 
 
 //пид и фаза паяльника
 
-#define SCALING_FACTOR 100
+#define SCALING_FACTOR 128
 
-#define IRON_KP 10
-#define IRON_KI 0.1
-#define IRON_KD 50
+#define IRON_PID_KP (5 * SCALING_FACTOR)
+#define IRON_PID_KI (0 * SCALING_FACTOR)
+#define IRON_PID_KD (0 * SCALING_FACTOR)
 
+#define IRON_PID_MIN 0
+#define IRON_PID_MAX (100 * SCALING_FACTOR)
 
+#define IRON_PID_MIN_ERROR 0
+#define IRON_PID_MAX_ERROR (IRON_PID_MAX / (IRON_PID_KP + 1))
+
+#define IRON_PID_IMAX (IRON_PID_MAX / 2)
+#define IRON_PID_MAX_SUM_ERROR (IRON_PID_IMAX / (IRON_PID_KI + 1))
 
 #define PHASE_IRON _BV(1)
 #define PHASE_FEN _BV(2)
@@ -31,11 +38,7 @@
 #define IRON_MIN_POWER 0
 #define IRON_MAX_POWER 100
 
-#define IRON_PID_IMIN 0.1
-#define IRON_PID_IMAX 1
 
-void iron_init_mod(void);
-PT_THREAD(iron_pt_manage(struct pt *pt));
 
 
 //апроксимация температуры по контрольным точкам
@@ -67,5 +70,11 @@ x = (y - y0) * a + x0
 #define TZ_X_(X0,Y0,X1,Y1) { (uint16_t)Y1, (uint16_t)X0, (uint16_t)Y0, (uint32_t)((((X1 - X0) / (Y1 - Y0))) * TZ_AMUL) }
 #define TZ_X(x,y) TZ_X_(x,y)
 
+
+void heater_iron_on(void);
+void heater_iron_off(void);
+
+void heater_init_mod(void);
+PT_THREAD(heater_pt_manage(struct pt *pt));
 
 #endif // IRON_H
