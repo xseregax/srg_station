@@ -4,32 +4,26 @@
 
 #define SIMISTOR_TIME_ON 8 //время для вкл симистора, ms
 
-#define PID_STEP 500L //интервал измерений, ms
-
-
 //пид и фаза паяльника
 
-#define SCALING_FACTOR 128L
+#define IRON_ADC_ERROR 800L //не подключено термосопротивление
+#define IRON_ADC_SAMPLES 4
 
-#define IRON_ERROR_ADC 800L //не подключено термосопротивление
 
-#define IRON_PID_KP (5 * SCALING_FACTOR)
-#define IRON_PID_KI (0 * SCALING_FACTOR * (PID_STEP / 1000))
-#define IRON_PID_KD (0 * SCALING_FACTOR / (PID_STEP / 1000))
+#define IRON_PID_DELTA_T 500 / 1000.0
+
+#define IRON_PID_KP 1.3
+#define IRON_PID_KI 0
+#define IRON_PID_KD 0
 
 #define IRON_PID_MIN 0
-#define IRON_PID_MAX (100 * SCALING_FACTOR)
+#define IRON_PID_MAX 100
 
-#define IRON_PID_MIN_ERROR 0
-#define IRON_PID_MAX_ERROR (IRON_PID_MAX / (IRON_PID_KP + 1))
-
-#define IRON_PID_IMAX (IRON_PID_MAX / 2)
-#define IRON_PID_MAX_SUM_ERROR (IRON_PID_IMAX / (IRON_PID_KI + 1))
 
 #define IRON_TEMP_SOFT 50 //температура, до которой нагрев идет в 50% мощности, гр
-#define IRON_TEMP_MIN 50 //мин температура, гр
+#define IRON_TEMP_MIN 150 //мин температура, гр
 #define IRON_TEMP_MAX 450L //макс температура, гр
-#define IRON_TEMP_STEP 50 //шаг регулировки температуры, гр
+#define IRON_TEMP_STEP 10 //шаг регулировки температуры, гр
 
 
 //апроксимация температуры по контрольным точкам

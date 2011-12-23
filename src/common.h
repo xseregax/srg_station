@@ -14,6 +14,7 @@
 #include <string.h>
 #include <stdio.h>
 
+#include "ul_rbuf.h"
 #include "pt.h"
 #include "timer.h"
 
@@ -77,16 +78,6 @@ typedef struct {
 #define UPDATE_SCREEN_ALL (UPDATE_SCREEN_MENU|UPDATE_SCREEN_VALS)
 
 typedef struct {
-    int16_t temp_last;
-    int32_t error_sum;
-
-    int16_t maxError;
-    int32_t maxSumError;
-
-} TPid;
-
-
-typedef struct {
     unsigned on: 1; //вкл-выкл паяльника
 
     uint16_t adc; //последние значение с adc
@@ -96,8 +87,6 @@ typedef struct {
     uint16_t temp_need; //требуемая температура
 
     uint16_t out1;
-
-    TPid pid;
 } TIron;
 
 

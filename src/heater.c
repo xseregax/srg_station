@@ -1,6 +1,40 @@
 #include "common.h"
 #include "hal.h"
+#include "uart.h"
 #include "heater.h"
+
+typedef struct {
+    uint8_t header;
+
+    uint8_t type;
+    uint16_t value1;
+    uint16_t value2;
+    uint16_t value3;
+    uint16_t value4;
+
+    uint8_t crc;
+} TPCInfo;
+
+#define PCINFO_HEADER 0xDE
+#define PCINFO_TYPE_IRON 0x01
+
+#include <util/crc16.h>
+void send_uart_info(TPCInfo *info) {
+    info->header = PCINFO_HEADER;
+
+    uint8_t i, crc = 0;
+    uint8_t *p = (uint8_t*)info;
+
+    for(i = 0; i < sizeof(TPCInfo) - 1; i++)
+        crc = _crc_ibutton_update(crc, p[i]);
+
+    info->crc = crc;
+
+    for(i = 0; i < sizeof(TPCInfo); i++)
+        uart_send_b(p[i]);
+}
+
+
 
 //для регулирования мощности
 PGM(uint16_t gPowerMas[]) = {
@@ -147,53 +181,33 @@ uint16_t find_temp(uint16_t adc, const TTempZones* tempzones, uint8_t count) {
     return temp;
 }
 
+#include <stdlib.h>
+#include <math.h>
+uint16_t pid_Controller(uint16_t temp_need, uint16_t temp_curr) {
+    static float pre_error = 0;
+    static float integral = 0;
 
-int16_t pid_Controller(uint16_t temp_need, uint16_t temp_curr, volatile TPid *pid_st) {
-
-    uint16_t ret, p_term;
-    int16_t error, i_term, temp, d_term;
+    float error, deriv, out;
 
     error = temp_need - temp_curr;
 
-    if (error >= IRON_PID_MAX_ERROR) {
-        p_term = IRON_PID_MAX;
-    }
-    else if (error <= IRON_PID_MIN) {
-        p_term = IRON_PID_MIN;
-    }
-    else {
-        p_term = IRON_PID_KP * error;
-    }
+    if(abs(error) > 0.01)
+        integral += error * IRON_PID_DELTA_T;
 
-    temp = pid_st->error_sum + error;
+    deriv = (error - pre_error) / IRON_PID_DELTA_T;
 
-    if(temp > IRON_PID_MAX_SUM_ERROR) {
-        i_term = IRON_PID_IMAX;
+    out = IRON_PID_KP * error + IRON_PID_KI * integral + IRON_PID_KD * deriv;
 
-        pid_st->error_sum = IRON_PID_MAX_SUM_ERROR;
-    }
-    else if(temp < -IRON_PID_MAX_SUM_ERROR) {
-        i_term = -IRON_PID_IMAX;
+    pre_error = error;
 
-        pid_st->error_sum = -IRON_PID_MAX_SUM_ERROR;
-    }
-    else {
-        pid_st->error_sum = temp;
-
-        i_term = IRON_PID_KI * pid_st->error_sum;
+    if(out < IRON_PID_MIN)
+        out = IRON_PID_MIN;
+    else
+    if(out > IRON_PID_MAX) {
+        out = IRON_PID_MAX;
     }
 
-    d_term = IRON_PID_KD * (pid_st->temp_last - temp_curr);
-
-    pid_st->temp_last = temp_curr;
-
-    ret = p_term + i_term + d_term;
-
-    if(ret > IRON_PID_MAX) {
-        ret = IRON_PID_MAX;
-    }
-
-    return ret / SCALING_FACTOR;
+    return ceil(out);
 }
 
 void heater_iron_setpower(uint16_t pow) {
@@ -237,49 +251,63 @@ PT_THREAD(iron_pt_manage(struct pt *pt)) {
 
     PT_BEGIN(pt);
 
-    TIMER_INIT(timer, PID_STEP);
+    TIMER_INIT(timer, IRON_PID_DELTA_T * 1000);
     for(;;) {
         PT_WAIT_UNTIL(pt, g_data.iron.on == _ON && TIMER_ENDED(timer));
-        TIMER_INIT(timer, PID_STEP);
+        TIMER_INIT(timer, IRON_PID_DELTA_T * 1000);
 
         volatile TIron *iron = &g_data.iron;
 
-        uint16_t adc = adc_read(ADC_PIN_IRON);
+        uint16_t adc = 0;
+        uint8_t i;
 
-        if(adc >= IRON_ERROR_ADC) {
+        for(i = 0; i < IRON_ADC_SAMPLES; i++)
+            adc += adc_read(ADC_PIN_IRON);
+        adc /= IRON_ADC_SAMPLES;
+
+        if(adc >= IRON_ADC_ERROR) {
             heater_iron_setpower(0);
 
             g_data.update_screen |= UPDATE_SCREEN_ERROR;
-
             continue;
         }
 
-        if(1 || adc != iron->adc) {
+        if(adc != iron->adc) {
             iron->adc = adc;
 
-            if(iron->temp < iron->temp_need) iron->temp++;
-            else
-            if(iron->temp > iron->temp_need) iron->temp--;
-
             iron->temp = find_temp(adc, gIronTempZones, sizeof(gIronTempZones));
-
             g_data.update_screen |= UPDATE_SCREEN_VALS;
         }
 
         uint16_t pow;
 
-        if(iron->temp < IRON_TEMP_SOFT) {
-            pow = IRON_PID_MAX / 2 / SCALING_FACTOR;
+        if(iron->temp < IRON_TEMP_SOFT && iron->temp < iron->temp_need) {
+            pow = IRON_PID_MAX / 4;
         }
         else
-            pow = pid_Controller(iron->temp_need, iron->temp, &iron->pid);
+            pow = pid_Controller(iron->temp_need, iron->temp);
 
         if(pow != iron->power) {
 
             heater_iron_setpower(pow);
+
             g_data.update_screen |= UPDATE_SCREEN_VALS;
         }
 
+
+        if(g_data.update_screen & UPDATE_SCREEN_VALS) {
+            TPCInfo info;
+
+            info.type = PCINFO_TYPE_IRON;
+
+            info.value1 = iron->temp;
+            info.value2 = iron->power;
+            info.value3 = iron->temp_need;
+            info.value4 = iron->adc;
+
+            send_uart_info(&info);
+
+        }
     }
 
     PT_END(pt);
