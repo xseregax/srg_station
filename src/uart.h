@@ -17,10 +17,6 @@
 #define UART_TX_BUFF_SIZE 4
 
 
-PT_THREAD(uart_pt_recieve(struct pt *pt));
-
-void uart_init_mod(void);
-
 inline void uart_init_uart(void) {
     UCSRB = 0;
 
@@ -38,6 +34,9 @@ inline void uart_init_uart(void) {
    //8 bits, 1 stop
    UCSRC = _BV(URSEL) | _BV(UCSZ1) | _BV(UCSZ0);
 }
+
+void uart_init_mod(void);
+PT_THREAD(uart_pt_recieve(struct pt *pt));
 
 
 #endif // UART_H

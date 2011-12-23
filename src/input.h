@@ -21,15 +21,11 @@ typedef struct {
     uint8_t release;//для сброса нажатия
 } TButtonState;
 
+
+void input_init_mod(void);
 PT_THREAD(input_pt_check_inputs(struct pt *pt));
 
 
-void input_init_mod(void);
-
-
-
-volatile TButtonState g_button_state;
-extern volatile TActionCmd g_action_cmd;
-
+extern volatile TButtonState g_button_state;
 
 #endif // INPUT_H

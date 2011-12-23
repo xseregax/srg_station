@@ -2,117 +2,112 @@
 #include "hal.h"
 #include "heater.h"
 
-volatile uint8_t g_phase = 0;
-
-//F_CPU / Timer1 rescaler / 500kHz base table
-#define RECAL_TIME (F_CPU / 8 / 500000L)
-
-//для пропуска периодов
+//для регулирования мощности
 PGM(uint16_t gPowerMas[]) = {
-    0 * RECAL_TIME,          //0% 5500 а не 5000 для надежного 0
-    4684 * RECAL_TIME,          //1%
-    4551 * RECAL_TIME,          //2%
-    4448 * RECAL_TIME,          //3%
-    4361 * RECAL_TIME,          //4%
-    4284 * RECAL_TIME,          //5%
-    4214 * RECAL_TIME,          //6%
-    4150 * RECAL_TIME,          //7%
-    4089 * RECAL_TIME,          //8%
-    4032 * RECAL_TIME,          //9%
-    3978 * RECAL_TIME,          //10%
-    3926 * RECAL_TIME,          //11%
-    3876 * RECAL_TIME,          //12%
-    3828 * RECAL_TIME,          //13%
-    3781 * RECAL_TIME,          //14%
-    3736 * RECAL_TIME,          //15%
-    3692 * RECAL_TIME,          //16%
-    3649 * RECAL_TIME,          //17%
-    3607 * RECAL_TIME,          //18%
-    3566 * RECAL_TIME,          //19%
-    3526 * RECAL_TIME,          //20%
-    3487 * RECAL_TIME,          //21%
-    3448 * RECAL_TIME,          //22%
-    3410 * RECAL_TIME,          //23%
-    3372 * RECAL_TIME,          //24%
-    3335 * RECAL_TIME,          //25%
-    3298 * RECAL_TIME,          //26%
-    3262 * RECAL_TIME,          //27%
-    3227 * RECAL_TIME,          //28%
-    3191 * RECAL_TIME,          //29%
-    3157 * RECAL_TIME,          //30%
-    3122 * RECAL_TIME,          //31%
-    3088 * RECAL_TIME,          //32%
-    3054 * RECAL_TIME,          //33%
-    3020 * RECAL_TIME,          //34%
-    2986 * RECAL_TIME,          //35%
-    2953 * RECAL_TIME,          //36%
-    2920 * RECAL_TIME,          //37%
-    2887 * RECAL_TIME,          //38%
-    2854 * RECAL_TIME,          //39%
-    2822 * RECAL_TIME,          //40%
-    2789 * RECAL_TIME,          //41%
-    2757 * RECAL_TIME,          //42%
-    2725 * RECAL_TIME,          //43%
-    2693 * RECAL_TIME,          //44%
-    2661 * RECAL_TIME,          //45%
-    2629 * RECAL_TIME,          //46%
-    2597 * RECAL_TIME,          //47%
-    2565 * RECAL_TIME,          //48%
-    2533 * RECAL_TIME,          //49%
-    2501 * RECAL_TIME,          //50%
-    2469 * RECAL_TIME,          //51%
-    2438 * RECAL_TIME,          //52%
-    2406 * RECAL_TIME,          //53%
-    2374 * RECAL_TIME,          //54%
-    2342 * RECAL_TIME,          //55%
-    2310 * RECAL_TIME,          //56%
-    2278 * RECAL_TIME,          //57%
-    2245 * RECAL_TIME,          //58%
-    2213 * RECAL_TIME,          //59%
-    2181 * RECAL_TIME,          //60%
-    2148 * RECAL_TIME,          //61%
-    2115 * RECAL_TIME,          //62%
-    2082 * RECAL_TIME,          //63%
-    2049 * RECAL_TIME,          //64%
-    2016 * RECAL_TIME,          //65%
-    1983 * RECAL_TIME,          //66%
-    1949 * RECAL_TIME,          //67%
-    1915 * RECAL_TIME,          //68%
-    1881 * RECAL_TIME,          //69%
-    1846 * RECAL_TIME,          //70%
-    1811 * RECAL_TIME,          //71%
-    1776 * RECAL_TIME,          //72%
-    1740 * RECAL_TIME,          //73%
-    1704 * RECAL_TIME,          //74%
-    1668 * RECAL_TIME,          //75%
-    1630 * RECAL_TIME,          //76%
-    1593 * RECAL_TIME,          //77%
-    1555 * RECAL_TIME,          //78%
-    1516 * RECAL_TIME,          //79%
-    1477 * RECAL_TIME,          //80%
-    1436 * RECAL_TIME,          //81%
-    1395 * RECAL_TIME,          //82%
-    1353 * RECAL_TIME,          //83%
-    1311 * RECAL_TIME,          //84%
-    1267 * RECAL_TIME,          //85%
-    1221 * RECAL_TIME,          //86%
-    1175 * RECAL_TIME,          //87%
-    1127 * RECAL_TIME,          //88%
-    1077 * RECAL_TIME,          //89%
-    1025 * RECAL_TIME,          //90%
-    970 * RECAL_TIME,           //91%
-    913 * RECAL_TIME,           //92%
-    853 * RECAL_TIME,           //93%
-    788 * RECAL_TIME,           //94%
-    718 * RECAL_TIME,           //95%
-    641 * RECAL_TIME,           //96%
-    554 * RECAL_TIME,           //97%
-    452 * RECAL_TIME,           //98%
-    319 * RECAL_TIME,           //99%
-    1 * RECAL_TIME             //100%  50 а не 0 для надежного открытия симистора
+    0,	//0%, 0ms, 0gr
+    2342,	//1%, 9.368ms, 168.624gr
+    2276,	//2%, 9.102ms, 163.836gr
+    2224,	//3%, 8.896ms, 160.128gr
+    2181,	//4%, 8.722ms, 156.996gr
+    2142,	//5%, 8.568ms, 154.224gr
+    2107,	//6%, 8.428ms, 151.704gr
+    2075,	//7%, 8.3ms, 149.4gr
+    2045,	//8%, 8.178ms, 147.204gr
+    2016,	//9%, 8.064ms, 145.152gr
+    1989,	//10%, 7.956ms, 143.208gr
+    1963,	//11%, 7.852ms, 141.336gr
+    1938,	//12%, 7.752ms, 139.536gr
+    1914,	//13%, 7.656ms, 137.808gr
+    1891,	//14%, 7.562ms, 136.116gr
+    1868,	//15%, 7.472ms, 134.496gr
+    1846,	//16%, 7.384ms, 132.912gr
+    1825,	//17%, 7.298ms, 131.364gr
+    1804,	//18%, 7.214ms, 129.852gr
+    1783,	//19%, 7.132ms, 128.376gr
+    1763,	//20%, 7.052ms, 126.936gr
+    1744,	//21%, 6.974ms, 125.532gr
+    1724,	//22%, 6.896ms, 124.128gr
+    1705,	//23%, 6.82ms, 122.76gr
+    1686,	//24%, 6.744ms, 121.392gr
+    1668,	//25%, 6.67ms, 120.06gr
+    1649,	//26%, 6.596ms, 118.728gr
+    1631,	//27%, 6.524ms, 117.432gr
+    1614,	//28%, 6.454ms, 116.172gr
+    1596,	//29%, 6.382ms, 114.876gr
+    1579,	//30%, 6.314ms, 113.652gr
+    1561,	//31%, 6.244ms, 112.392gr
+    1544,	//32%, 6.176ms, 111.168gr
+    1527,	//33%, 6.108ms, 109.944gr
+    1510,	//34%, 6.04ms, 108.72gr
+    1493,	//35%, 5.972ms, 107.496gr
+    1477,	//36%, 5.906ms, 106.308gr
+    1460,	//37%, 5.84ms, 105.12gr
+    1444,	//38%, 5.774ms, 103.932gr
+    1427,	//39%, 5.708ms, 102.744gr
+    1411,	//40%, 5.644ms, 101.592gr
+    1395,	//41%, 5.578ms, 100.404gr
+    1379,	//42%, 5.514ms, 99.252gr
+    1363,	//43%, 5.45ms, 98.1gr
+    1347,	//44%, 5.386ms, 96.948gr
+    1331,	//45%, 5.322ms, 95.796gr
+    1315,	//46%, 5.258ms, 94.644gr
+    1299,	//47%, 5.194ms, 93.492gr
+    1283,	//48%, 5.13ms, 92.34gr
+    1267,	//49%, 5.066ms, 91.188gr
+    1251,	//50%, 5.002ms, 90.036gr
+    1235,	//51%, 4.938ms, 88.884gr
+    1219,	//52%, 4.876ms, 87.768gr
+    1203,	//53%, 4.812ms, 86.616gr
+    1187,	//54%, 4.748ms, 85.464gr
+    1171,	//55%, 4.684ms, 84.312gr
+    1155,	//56%, 4.62ms, 83.16gr
+    1139,	//57%, 4.556ms, 82.008gr
+    1123,	//58%, 4.49ms, 80.82gr
+    1107,	//59%, 4.426ms, 79.668gr
+    1091,	//60%, 4.362ms, 78.516gr
+    1074,	//61%, 4.296ms, 77.328gr
+    1058,	//62%, 4.23ms, 76.14gr
+    1041,	//63%, 4.164ms, 74.952gr
+    1025,	//64%, 4.098ms, 73.764gr
+    1008,	//65%, 4.032ms, 72.576gr
+    992,	//66%, 3.966ms, 71.388gr
+    975,	//67%, 3.898ms, 70.164gr
+    958,	//68%, 3.83ms, 68.94gr
+    941,	//69%, 3.762ms, 67.716gr
+    923,	//70%, 3.692ms, 66.456gr
+    906,	//71%, 3.622ms, 65.196gr
+    888,	//72%, 3.552ms, 63.936gr
+    870,	//73%, 3.48ms, 62.64gr
+    852,	//74%, 3.408ms, 61.344gr
+    834,	//75%, 3.336ms, 60.048gr
+    815,	//76%, 3.26ms, 58.68gr
+    797,	//77%, 3.186ms, 57.348gr
+    778,	//78%, 3.11ms, 55.98gr
+    758,	//79%, 3.032ms, 54.576gr
+    739,	//80%, 2.954ms, 53.172gr
+    718,	//81%, 2.872ms, 51.696gr
+    698,	//82%, 2.79ms, 50.22gr
+    677,	//83%, 2.706ms, 48.708gr
+    656,	//84%, 2.622ms, 47.196gr
+    634,	//85%, 2.534ms, 45.612gr
+    611,	//86%, 2.442ms, 43.956gr
+    588,	//87%, 2.35ms, 42.3gr
+    564,	//88%, 2.254ms, 40.572gr
+    539,	//89%, 2.154ms, 38.772gr
+    513,	//90%, 2.05ms, 36.9gr
+    485,	//91%, 1.94ms, 34.92gr
+    457,	//92%, 1.826ms, 32.868gr
+    427,	//93%, 1.706ms, 30.708gr
+    394,	//94%, 1.576ms, 28.368gr
+    359,	//95%, 1.436ms, 25.848gr
+    321,	//96%, 1.282ms, 23.076gr
+    277,	//97%, 1.108ms, 19.944gr
+    226,	//98%, 0.904ms, 16.272gr
+    160,	//99%, 0.638ms, 11.484gr
+    1,	//100%, 0.002ms, 0.036gr
 };
 
-PGM(TTempZones gIronTempZones[]) = {
+TTempZones gIronTempZones[] = {
     TZ_X(TZ_XY0, TZ_XY1),
     TZ_X(TZ_XY1, TZ_XY2),
     TZ_X(TZ_XY2, TZ_XY3),
@@ -143,27 +138,15 @@ uint16_t adc_read(uint8_t adc_pin)
 uint16_t find_temp(uint16_t adc, const TTempZones* tempzones, uint8_t count) {
     uint8_t i;
     for(i = 0; i < count; i++ ) {
-        if(adc <= pgm_read_word(&tempzones[i].y1))
+        if(adc <= tempzones[i].y1)
             break;
     }
 
-    uint16_t temp = ((adc - pgm_read_word(&tempzones[i].y0)) * pgm_read_dword(&tempzones[i].a)) / TZ_AMUL +
-            pgm_read_word(&tempzones[i].x0);
+    uint16_t temp = ((adc - tempzones[i].y0) * tempzones[i].a) / TZ_AMUL + tempzones[i].x0;
 
     return temp;
 }
-/*
-uint8_t check_phase(uint8_t flag) {
-    uint8_t st;
 
-    ATOMIC_BLOCK(ATOMIC_FORCEON) {
-        st = g_phase & flag;
-        g_phase &= ~ flag;
-    }
-
-    return st;
-}
-*/
 
 int16_t pid_Controller(uint16_t temp_need, uint16_t temp_curr, volatile TPid *pid_st) {
 
@@ -213,6 +196,13 @@ int16_t pid_Controller(uint16_t temp_need, uint16_t temp_curr, volatile TPid *pi
     return ret / SCALING_FACTOR;
 }
 
+void heater_iron_setpower(uint16_t pow) {
+    g_data.iron.power = pow;
+
+    ATOMIC_BLOCK(ATOMIC_FORCEON) {
+        OCR1A = pgm_read_word(&gPowerMas[pow]);
+    }
+}
 
 void heater_iron_on(void) {
     if(g_data.iron.on == _ON) return;
@@ -226,6 +216,8 @@ void heater_iron_on(void) {
 
 void heater_iron_off(void) {
     if(g_data.iron.on == _OFF) return;
+
+    heater_iron_setpower(0);
 
     g_data.iron.on = _OFF;
 }
@@ -253,6 +245,15 @@ PT_THREAD(iron_pt_manage(struct pt *pt)) {
         volatile TIron *iron = &g_data.iron;
 
         uint16_t adc = adc_read(ADC_PIN_IRON);
+
+        if(adc >= IRON_ERROR_ADC) {
+            heater_iron_setpower(0);
+
+            g_data.update_screen |= UPDATE_SCREEN_ERROR;
+
+            continue;
+        }
+
         if(1 || adc != iron->adc) {
             iron->adc = adc;
 
@@ -260,21 +261,22 @@ PT_THREAD(iron_pt_manage(struct pt *pt)) {
             else
             if(iron->temp > iron->temp_need) iron->temp--;
 
-            //iron->temp = find_temp(adc, gIronTempZones, sizeof(gIronTempZones));
+            iron->temp = find_temp(adc, gIronTempZones, sizeof(gIronTempZones));
 
             g_data.update_screen |= UPDATE_SCREEN_VALS;
         }
 
-        uint16_t pow = pid_Controller(iron->temp_need, iron->temp, &iron->pid);
+        uint16_t pow;
+
+        if(iron->temp < IRON_TEMP_SOFT) {
+            pow = IRON_PID_MAX / 2 / SCALING_FACTOR;
+        }
+        else
+            pow = pid_Controller(iron->temp_need, iron->temp, &iron->pid);
 
         if(pow != iron->power) {
 
-            ATOMIC_BLOCK(ATOMIC_FORCEON) {
-                OCR1A = pgm_read_word(&gPowerMas[pow]);
-            }
-
-            iron->power = pow;
-
+            heater_iron_setpower(pow);
             g_data.update_screen |= UPDATE_SCREEN_VALS;
         }
 
@@ -316,18 +318,11 @@ void heater_init_mod(void) {
 
 //ZCD
 ISR(INT2_vect) {
-    //static uint8_t phase = 0;
 
     if(g_data.iron.on == _ON) {
         TCNT1 = 0x00;
         TCCR1B |= TIMER1A_PRESCALE; //вкл таймер 1
     }
-
-    /*if(++phase == 10) {
-        phase = 0;
-
-        g_phase |= PHASE_ALL;
-    }*/
 }
 
 ISR(TIMER1_COMPA_vect) {

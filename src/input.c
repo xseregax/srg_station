@@ -1,4 +1,5 @@
 #include "common.h"
+#include "actions.h"
 #include "input.h"
 
 volatile TButtonState g_button_state;
@@ -14,7 +15,7 @@ inline void button_check_press() {
     if(!g_button_state.on) { //если нажатие не точное
 
         if(g_button_state.cnt > BUTTON_DEBOUNCE) { //antiдребезг
-            g_button_state.on = 1;
+            g_button_state.on = _ON;
             g_button_state.cnt = 0;
 
             goto butt_on;
@@ -23,21 +24,18 @@ inline void button_check_press() {
         }
     } else { //пропустили дребезг
 
-        if(!g_button_state.plong) {
+        if(g_button_state.plong == _OFF) {
             if(g_button_state.cnt >= BUTTON_LONG) { //долго держит
-                g_button_state.plong = 1;
+                g_button_state.plong = _ON;
             }
-        }
-        else {
-            g_button_state.cnt ++;
+            else
+                g_button_state.cnt ++;
         }
 
         if(g_button_state.repeat >= BUTTON_REPEAT) {
 butt_on:
             //добавим действие
-            g_action_cmd.name = g_button_state.name;
-            g_action_cmd.action = (g_button_state.plong? ACT_PUSH_LONG: ACT_PUSH);
-            g_action_cmd.active = 1;
+            actions_set_cmd(g_button_state.name, (g_button_state.plong == _ON? ACT_PUSH_LONG: ACT_PUSH));
 
             g_button_state.repeat = 0;
         }
@@ -54,9 +52,7 @@ inline void encoder_check_rotate(TActions encact) {
    if(++g_button_state.cnt < 4) return;
 
     //добавим действие
-    g_action_cmd.name = g_button_state.name;
-    g_action_cmd.action = encact;
-    g_action_cmd.active = 1;
+    actions_set_cmd(g_button_state.name, encact);
 
     g_button_state.name = NM_NONE;
 }
@@ -113,7 +109,7 @@ inline void button_check(TActElements name, TActions encact) {
             encoder_check_rotate(encact);
         }
     }
-    else if(g_button_state.on) {
+    else if(g_button_state.on == _ON) {
         if(g_button_state.release >= BUTTON_RELEASE) {
             button_init();
         }

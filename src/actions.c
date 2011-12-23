@@ -19,7 +19,7 @@ void iron_dec_temp(void) {
     else
         iron->temp_need = IRON_TEMP_MIN;
 
-    g_data.update_screen |= UPDATE_SCREEN_ALL;
+    g_data.update_screen |= UPDATE_SCREEN_VALS;
 }
 
 void iron_inc_temp(void) {
@@ -30,7 +30,7 @@ void iron_inc_temp(void) {
     else
         iron->temp_need = IRON_TEMP_MAX;
 
-    g_data.update_screen |= UPDATE_SCREEN_ALL;
+    g_data.update_screen |= UPDATE_SCREEN_VALS;
 }
 
 void menu_select_main(void) {
@@ -52,6 +52,8 @@ void menu_select_rotate_left(void) {
         g_data.temp = 2;
     else
         g_data.temp -= 1;
+
+    g_data.update_screen |= UPDATE_SCREEN_ALL;
 }
 
 void menu_select_rotate_right(void) {
@@ -59,6 +61,8 @@ void menu_select_rotate_right(void) {
         g_data.temp = 0;
     else
         g_data.temp += 1;
+
+    g_data.update_screen |= UPDATE_SCREEN_ALL;
 }
 
 void menu_select_mode(void) {
@@ -81,9 +85,20 @@ void menu_select_mode(void) {
             break;
     }
 
+    g_data.update_screen |= UPDATE_SCREEN_ALL;
 }
 
 /*
+
+typedef void (*TVFunc)(void);
+
+#define NAME_BT1_BT2_BT3_BT4_BTE_ENCR_BT1ENC(bt1,bt2,bt3,bt4,bte,encr,bt1enc) {bt1,bt2,bt3,bt4,bte,encr,bt1enc}
+#define ACTS_NONE_PUSH_PUSHL_ROTL_ROTR(none,push,pushl,rotl,rotr) {none,push,pushl,rotl,rotr}
+#define MENU_SEL_IRON_FEN_DRL(sel,iron,fen,drl) {sel,iron,fen,drl}
+
+
+// [TActElements][TActions][TMenuStates][TVFunc]
+
 PGM(TVFunc actions_acts[][7][5][4]) = {
     NAME_BT1_BT2_BT3_BT4_BTE_ENCR_BT1ENC(
         ACTS_NONE_PUSH_PUSHL_ROTL_ROTR( //NAME_BUTTON1
@@ -153,6 +168,8 @@ PT_THREAD(actions_pt_check_commands(struct pt *pt)) {
         if(g_action_cmd.name == NM_BUTTON1) {
 
             if(g_action_cmd.action == ACT_PUSH) {
+                ON(P_LED_RED);
+
                 avr_reset();
 
             } //ACT_PUSH
@@ -185,7 +202,7 @@ PT_THREAD(actions_pt_check_commands(struct pt *pt)) {
 
         } //NM_ENCBUTTON
         else
-        if(g_action_cmd.name == NM_ENCBUTTON) {
+        if(g_action_cmd.name == NM_ENCROTATE) {
 
             if(g_action_cmd.action == ACT_ROTATE_LEFT) {
 
@@ -211,7 +228,7 @@ PT_THREAD(actions_pt_check_commands(struct pt *pt)) {
 
             } //ACT_ROTATE_LEFT
 
-        } //NM_ENCBUTTON
+        } //NM_ENCROTATE
 
     }
 

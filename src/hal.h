@@ -1,7 +1,7 @@
 #ifndef HAL_H
 #define HAL_H
 
-#define TIMER1A_PRESCALE _BV(CS11)
+#define TIMER1A_PRESCALE (_BV(CS11) | _BV(CS10))
 #define TIMER1_PRESCALE_OFF (_BV(CS12) | _BV(CS11) | _BV(CS10))
 
 //вкл станции
@@ -103,7 +103,7 @@ inline void hal_init_pwm(void) {
     //mode normal
     //TCCR1A = 0;
 
-    //mode 4, CTC, prescaler to 8 (2MHz), def off
+    //mode 4, CTC, prescaler to 64 (250kHz), def off
     TCCR1B |= _BV(WGM12);
 
     //текущий счетчик

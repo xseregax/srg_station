@@ -40,7 +40,7 @@
 #define PN_DDR(x) PN_DDR_(x)
 
 
-#define AVR_RESET do { cli(); wdt_reset(); wdt_enable( WDTO_15MS ); } while (1)
+#define AVR_RESET do { cli(); wdt_reset(); wdt_enable( WDTO_15MS ); while(1); } while (0)
 
 #define _ON 1
 #define _OFF 0
@@ -72,6 +72,7 @@ typedef struct {
 #define UPDATE_SCREEN_MENU _BV(1)
 #define UPDATE_SCREEN_VALS _BV(2)
 #define UPDATE_SCREEN_FLASH _BV(3)
+#define UPDATE_SCREEN_ERROR _BV(4)
 
 #define UPDATE_SCREEN_ALL (UPDATE_SCREEN_MENU|UPDATE_SCREEN_VALS)
 
@@ -113,7 +114,7 @@ typedef struct {
 
 
 
-volatile TGlobalData g_data;
+extern volatile TGlobalData g_data;
 
 
 #endif // COMMON_H

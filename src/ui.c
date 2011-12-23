@@ -80,6 +80,16 @@ inline void menu_display_iron(void) {
         //lcd_xy(1, 15);
         //lcd_char('H');
     }
+
+    if(g_data.update_screen & UPDATE_SCREEN_ERROR) {
+        lcd_clear();
+
+        lcd_xy(0, 0);
+        lcd_str("ERROR");
+
+        lcd_xy(1, 0);
+        lcd_str("INSERT IRON!");
+    }
 }
 
 PT_THREAD(ui_pt_update_display(struct pt *pt)) {
