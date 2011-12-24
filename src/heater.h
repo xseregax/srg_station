@@ -6,12 +6,12 @@
 
 //пид и фаза паяльника
 
-#define IRON_ADC_ERROR 800L //не подключено термосопротивление
+#define IRON_ADC_ERROR 900L //не подключено термосопротивление
 
 #define IRON_PID_DELTA_T 100
 
-#define IRON_PID_KP 1.3
-#define IRON_PID_KI 0
+#define IRON_PID_KP 50
+#define IRON_PID_KI 15
 #define IRON_PID_KD 0
 
 #define IRON_PID_MIN 0
@@ -19,7 +19,7 @@
 
 
 #define IRON_TEMP_SOFT 50 //температура, до которой нагрев идет в 50% мощности, гр
-#define IRON_TEMP_MIN 150 //мин температура, гр
+#define IRON_TEMP_MIN 50 //мин температура, гр
 #define IRON_TEMP_MAX 450L //макс температура, гр
 #define IRON_TEMP_STEP 10 //шаг регулировки температуры, гр
 
@@ -63,5 +63,13 @@ void heater_fen_off(void);
 
 void heater_init_mod(void);
 PT_THREAD(heater_pt_manage(struct pt *pt));
+
+
+
+extern volatile uint8_t pid_p;
+extern volatile uint8_t pid_i;
+extern volatile uint8_t pid_d;
+extern volatile uint8_t send_stat;
+void pid_init(void);
 
 #endif // IRON_H

@@ -5,8 +5,8 @@
 
 #define BEEP(delay) do { ON(P_BUZER); _delay_ms(delay); OFF(P_BUZER); } while(0)
 
-//uses for TGlobalData_t.update_screen
-#define UPDATE_SCREEN_CLEAR 0xFF
+//uses for g_ui_update_screen
+#define UPDATE_SCREEN_BITS 0xFF
 
 #define UPDATE_SCREEN_MENU _BV(1)
 #define UPDATE_SCREEN_VALS _BV(2)
@@ -18,6 +18,10 @@
 //список элементов в меню
 //uses for g_ui_menu
 typedef enum { MENU_SELECT, MENU_IRON, MENU_FEN, MENU_DREL } TMenuStates;
+
+/* VARIABLES */
+extern volatile uint8_t g_ui_update_screen;
+extern volatile TMenuStates g_ui_menu;
 
 
 extern void hd44780_init(void);
@@ -38,9 +42,6 @@ inline void ui_set_update_screen(uint8_t flag) {
     g_ui_update_screen |= flag;
 }
 
-
-extern volatile uint8_t g_ui_update_screen;
-extern volatile TMenuStates g_ui_menu;
 
 
 #endif // UI_H

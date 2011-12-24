@@ -19,6 +19,8 @@ typedef struct {
 #define PCINFO_HEADER 0xDE
 #define PCINFO_TYPE_IRON 0x01
 
+#define PCINFO_TYPE_PRINT 0x05
+
 #include <util/crc16.h>
 void send_uart_info(TPCInfo *info) {
     info->header = PCINFO_HEADER;
@@ -156,10 +158,10 @@ TTempZones gIronTempZones[] = {
 uint16_t adc_read(uint8_t adc_pin)
 {
     ADMUX = (ADMUX & 0b011111000) | adc_pin;
-    _delay_us(10);
+    _delay_us(125);
 
     ADCSRA |= _BV(ADSC);         // start single convertion
-    loop_until_bit_is_set(ADCSRA,ADSC); // Wait for the AD conversion to complete
+    loop_until_bit_is_set(ADCSRA, ADSC); // Wait for the AD conversion to complete
 
     uint16_t temp;
 
@@ -177,38 +179,55 @@ uint16_t find_temp(uint16_t adc, const TTempZones* tempzones, uint8_t count) {
             break;
     }
 
-    uint16_t temp = ((adc - tempzones[i].y0) * tempzones[i].a) / TZ_AMUL + tempzones[i].x0;
+    uint16_t temp = ((adc - tempzones[i].y0) * tempzones[i].a) / TZ_AMUL +
+            tempzones[i].x0;
 
     return temp;
 }
 
+
+volatile uint8_t pid_p = IRON_PID_KP;
+volatile uint8_t pid_i = IRON_PID_KI;
+volatile uint8_t pid_d = IRON_PID_KD;
+volatile uint8_t send_stat = 1;
+
+static volatile double pre_error = 0;
+static volatile double integral = 0;
+
+void pid_init(void) {
+    pre_error = integral = 0;
+}
+
 #include <stdlib.h>
 #include <math.h>
-uint16_t pid_Controller(uint16_t temp_need, uint16_t temp_curr) {
-    static float pre_error = 0;
-    static float integral = 0;
+uint8_t pid_Controller(uint16_t temp_need, uint16_t temp_curr) {
+    double error, out;
 
-    float error, deriv, out;
+    error = (int16_t)(temp_need - temp_curr);
 
-    error = temp_need - temp_curr;
+    integral += error * (IRON_PID_DELTA_T / 1000.0);
 
-    if(abs(error) > 0.01)
-        integral += error * (IRON_PID_DELTA_T / 1000.0);
-
-    deriv = (error - pre_error) / (IRON_PID_DELTA_T / 1000.0);
-
-    out = IRON_PID_KP * error + IRON_PID_KI * integral + IRON_PID_KD * deriv;
+    out = (1.0 / pid_d) * (
+        error +
+        (1.0 / pid_i) * integral +
+        pid_d * (error - pre_error) / (IRON_PID_DELTA_T / 1000.0)
+    );
 
     pre_error = error;
 
-    if(out < IRON_PID_MIN)
-        out = IRON_PID_MIN;
-    else
-    if(out > IRON_PID_MAX) {
-        out = IRON_PID_MAX;
+    if(temp_curr < IRON_TEMP_SOFT && error > 0) {
+        return IRON_PID_MAX / 4;
     }
 
-    return ceil(out);
+    if(out < 0.0)
+        out = 0;
+    else
+    if(out > 1.0) {
+        out = 1;
+    }
+    else out = ceil(out);
+
+    return 100 * (uint8_t)out;
 }
 
 void heater_iron_setpower(uint16_t pow) {
@@ -261,6 +280,8 @@ PT_THREAD(iron_pt_manage(struct pt *pt)) {
 
         uint16_t adc = adc_read(ADC_PIN_IRON);
 
+        if(adc > 850) BEEP(100);
+
         if(adc >= IRON_ADC_ERROR) {
             heater_iron_setpower(0);
 
@@ -275,23 +296,18 @@ PT_THREAD(iron_pt_manage(struct pt *pt)) {
             ui_set_update_screen(UPDATE_SCREEN_VALS);
         }
 
-        uint16_t pow;
+        uint8_t pow;
 
-        if(iron->temp < IRON_TEMP_SOFT && iron->temp < iron->temp_need) {
-            pow = IRON_PID_MAX / 4;
-        }
-        else
-            pow = pid_Controller(iron->temp_need, iron->temp);
+        pow = pid_Controller(iron->temp_need, iron->temp);
 
         if(pow != iron->power) {
 
             heater_iron_setpower(pow);
-
             ui_set_update_screen(UPDATE_SCREEN_VALS);
         }
 
-
-        if(g_ui_update_screen & UPDATE_SCREEN_VALS) {
+//(g_ui_update_screen & UPDATE_SCREEN_VALS) &&
+        if(send_stat) {
             TPCInfo info;
 
             info.type = PCINFO_TYPE_IRON;

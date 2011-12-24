@@ -101,7 +101,7 @@ PT_THREAD(ui_pt_update_display(struct pt *pt)) {
 
     TIMER_INIT(timer, UI_UPDATE_TIME);
     for(;;) {
-        PT_WAIT_UNTIL(pt, !(g_ui_update_screen & UPDATE_SCREEN_CLEAR) &&
+        PT_WAIT_UNTIL(pt, (g_ui_update_screen & UPDATE_SCREEN_BITS) &&
                       TIMER_ENDED(timer));
         TIMER_INIT(timer, UI_UPDATE_TIME);
 
@@ -127,7 +127,7 @@ PT_THREAD(ui_pt_update_display(struct pt *pt)) {
         }
 
 
-        g_ui_update_screen &= ~UPDATE_SCREEN_CLEAR;
+        g_ui_update_screen &= ~UPDATE_SCREEN_BITS;
     }
 
     PT_END(pt);
