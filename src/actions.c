@@ -1,5 +1,6 @@
 #include "common.h"
 #include "heater.h"
+#include "ui.h"
 #include "actions.h"
 
 volatile TActionCmd g_action_cmd;
@@ -19,7 +20,7 @@ void iron_dec_temp(void) {
     else
         iron->temp_need = IRON_TEMP_MIN;
 
-    g_data.update_screen |= UPDATE_SCREEN_VALS;
+    ui_set_update_screen(UPDATE_SCREEN_VALS);
 }
 
 void iron_inc_temp(void) {
@@ -30,17 +31,17 @@ void iron_inc_temp(void) {
     else
         iron->temp_need = IRON_TEMP_MAX;
 
-    g_data.update_screen |= UPDATE_SCREEN_VALS;
+    ui_set_update_screen(UPDATE_SCREEN_VALS);
 }
 
 void menu_select_main(void) {
-    g_data.menu = MENU_SELECT;
+    g_ui_menu = MENU_SELECT;
     g_data.temp = 0;
 
     heater_iron_off();
     heater_fen_off();
 
-    g_data.update_screen |= UPDATE_SCREEN_ALL;
+    ui_set_update_screen(UPDATE_SCREEN_VALS);
 }
 
 void avr_reset(void) {
@@ -53,7 +54,7 @@ void menu_select_rotate_left(void) {
     else
         g_data.temp -= 1;
 
-    g_data.update_screen |= UPDATE_SCREEN_ALL;
+    ui_set_update_screen(UPDATE_SCREEN_ALL);
 }
 
 void menu_select_rotate_right(void) {
@@ -62,30 +63,30 @@ void menu_select_rotate_right(void) {
     else
         g_data.temp += 1;
 
-    g_data.update_screen |= UPDATE_SCREEN_ALL;
+    ui_set_update_screen(UPDATE_SCREEN_ALL);
 }
 
 void menu_select_mode(void) {
     switch(g_data.temp) {
         case 1:
-            g_data.menu = MENU_FEN;
+            g_ui_menu = MENU_FEN;
 
             heater_iron_off();
             heater_fen_on();
             break;
         case 2:
-            g_data.menu = MENU_DREL;
+            g_ui_menu = MENU_DREL;
 
             break;
         default:
-            g_data.menu = MENU_IRON;
+            g_ui_menu = MENU_IRON;
 
             heater_iron_on();
             heater_fen_off();
             break;
     }
 
-    g_data.update_screen |= UPDATE_SCREEN_ALL;
+    ui_set_update_screen(UPDATE_SCREEN_ALL);
 }
 
 /*
@@ -180,7 +181,7 @@ PT_THREAD(actions_pt_check_commands(struct pt *pt)) {
 
             if(g_action_cmd.action == ACT_PUSH) {
 
-                if(g_data.menu == MENU_SELECT) {
+                if(g_ui_menu == MENU_SELECT) {
                     menu_select_mode();
                 } //MENU_SELECT
 
@@ -193,7 +194,7 @@ PT_THREAD(actions_pt_check_commands(struct pt *pt)) {
 
             if(g_action_cmd.action == ACT_PUSH_LONG) {
 
-                if(g_data.menu != MENU_SELECT) {
+                if(g_ui_menu != MENU_SELECT) {
                     menu_select_main();
                 } //NOT MENU_SELECT
 
@@ -206,11 +207,11 @@ PT_THREAD(actions_pt_check_commands(struct pt *pt)) {
 
             if(g_action_cmd.action == ACT_ROTATE_LEFT) {
 
-                if(g_data.menu == MENU_IRON) {
+                if(g_ui_menu == MENU_IRON) {
                     iron_dec_temp();
                 } //MENU_IRON
                 else
-                if(g_data.menu == MENU_SELECT) {
+                if(g_ui_menu == MENU_SELECT) {
                     menu_select_rotate_left();
                 } //MENU_SELECT
 
@@ -218,11 +219,11 @@ PT_THREAD(actions_pt_check_commands(struct pt *pt)) {
             else
             if(g_action_cmd.action == ACT_ROTATE_RIGHT) {
 
-                if(g_data.menu == MENU_IRON) {
+                if(g_ui_menu == MENU_IRON) {
                     iron_inc_temp();
                 } //MENU_IRON
                 else
-                if(g_data.menu == MENU_SELECT) {
+                if(g_ui_menu == MENU_SELECT) {
                     menu_select_rotate_right();
                 } //MENU_SELECT
 

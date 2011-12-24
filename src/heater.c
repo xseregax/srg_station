@@ -1,6 +1,7 @@
 #include "common.h"
 #include "hal.h"
 #include "uart.h"
+#include "ui.h"
 #include "heater.h"
 
 typedef struct {
@@ -192,9 +193,9 @@ uint16_t pid_Controller(uint16_t temp_need, uint16_t temp_curr) {
     error = temp_need - temp_curr;
 
     if(abs(error) > 0.01)
-        integral += error * IRON_PID_DELTA_T;
+        integral += error * (IRON_PID_DELTA_T / 1000.0);
 
-    deriv = (error - pre_error) / IRON_PID_DELTA_T;
+    deriv = (error - pre_error) / (IRON_PID_DELTA_T / 1000.0);
 
     out = IRON_PID_KP * error + IRON_PID_KI * integral + IRON_PID_KD * deriv;
 
@@ -251,24 +252,19 @@ PT_THREAD(iron_pt_manage(struct pt *pt)) {
 
     PT_BEGIN(pt);
 
-    TIMER_INIT(timer, IRON_PID_DELTA_T * 1000);
+    TIMER_INIT(timer, IRON_PID_DELTA_T);
     for(;;) {
         PT_WAIT_UNTIL(pt, g_data.iron.on == _ON && TIMER_ENDED(timer));
-        TIMER_INIT(timer, IRON_PID_DELTA_T * 1000);
+        TIMER_INIT(timer, IRON_PID_DELTA_T);
 
         volatile TIron *iron = &g_data.iron;
 
-        uint16_t adc = 0;
-        uint8_t i;
-
-        for(i = 0; i < IRON_ADC_SAMPLES; i++)
-            adc += adc_read(ADC_PIN_IRON);
-        adc /= IRON_ADC_SAMPLES;
+        uint16_t adc = adc_read(ADC_PIN_IRON);
 
         if(adc >= IRON_ADC_ERROR) {
             heater_iron_setpower(0);
 
-            g_data.update_screen |= UPDATE_SCREEN_ERROR;
+            ui_set_update_screen(UPDATE_SCREEN_ERROR);
             continue;
         }
 
@@ -276,7 +272,7 @@ PT_THREAD(iron_pt_manage(struct pt *pt)) {
             iron->adc = adc;
 
             iron->temp = find_temp(adc, gIronTempZones, sizeof(gIronTempZones));
-            g_data.update_screen |= UPDATE_SCREEN_VALS;
+            ui_set_update_screen(UPDATE_SCREEN_VALS);
         }
 
         uint16_t pow;
@@ -291,11 +287,11 @@ PT_THREAD(iron_pt_manage(struct pt *pt)) {
 
             heater_iron_setpower(pow);
 
-            g_data.update_screen |= UPDATE_SCREEN_VALS;
+            ui_set_update_screen(UPDATE_SCREEN_VALS);
         }
 
 
-        if(g_data.update_screen & UPDATE_SCREEN_VALS) {
+        if(g_ui_update_screen & UPDATE_SCREEN_VALS) {
             TPCInfo info;
 
             info.type = PCINFO_TYPE_IRON;

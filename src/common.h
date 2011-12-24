@@ -46,9 +46,6 @@
 #define _ON 1
 #define _OFF 0
 
-//список элементов в меню
-//uses for TGlobalData_t.menu
-typedef enum { MENU_SELECT, MENU_IRON, MENU_FEN, MENU_DREL } TMenuStates;
 
 //действия
 typedef enum { ACT_NONE, ACT_PUSH, ACT_PUSH_LONG, ACT_ROTATE_LEFT, ACT_ROTATE_RIGHT } TActions;
@@ -66,17 +63,6 @@ typedef struct {
 } TActionCmd;
 
 
-
-//uses for TGlobalData_t.update_screen
-#define UPDATE_SCREEN_CLEAR 0xFF
-
-#define UPDATE_SCREEN_MENU _BV(1)
-#define UPDATE_SCREEN_VALS _BV(2)
-#define UPDATE_SCREEN_FLASH _BV(3)
-#define UPDATE_SCREEN_ERROR _BV(4)
-
-#define UPDATE_SCREEN_ALL (UPDATE_SCREEN_MENU|UPDATE_SCREEN_VALS)
-
 typedef struct {
     unsigned on: 1; //вкл-выкл паяльника
 
@@ -91,10 +77,6 @@ typedef struct {
 
 
 typedef struct {
-
-    TMenuStates menu; //текущий пункт меню
-    uint8_t update_screen; //обновить экран
-
     uint8_t temp; //для временного юзания
 
     TIron iron;

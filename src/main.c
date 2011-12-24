@@ -18,8 +18,6 @@ volatile TGlobalData g_data;
 
 inline void init_global_data(void) {
     memset((void *)&g_data, 0, sizeof(TGlobalData));
-
-    g_data.menu = MENU_SELECT;
 }
 
 uint8_t main(void) {

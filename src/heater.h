@@ -7,10 +7,8 @@
 //пид и фаза паяльника
 
 #define IRON_ADC_ERROR 800L //не подключено термосопротивление
-#define IRON_ADC_SAMPLES 4
 
-
-#define IRON_PID_DELTA_T 500 / 1000.0
+#define IRON_PID_DELTA_T 100
 
 #define IRON_PID_KP 1.3
 #define IRON_PID_KI 0

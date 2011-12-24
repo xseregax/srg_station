@@ -2,6 +2,8 @@
 #include "hd44780.h"
 #include "ui.h"
 
+volatile uint8_t g_ui_update_screen;
+volatile TMenuStates g_ui_menu;
 
 PGMSTR(str_iron, "iron");
 PGMSTR(str_fen, "fen");
@@ -22,14 +24,14 @@ inline void menu_display_select(void) {
     const char *curr;
     char buf[16+1];
 
-    if(g_data.update_screen & UPDATE_SCREEN_MENU) {
+    if(g_ui_update_screen & UPDATE_SCREEN_MENU) {
         lcd_clear();
 
         lcd_xy(0, 0);
         lcd_str_P(str_select_mode);
     }
 
-    if(g_data.update_screen & UPDATE_SCREEN_VALS) {
+    if(g_ui_update_screen & UPDATE_SCREEN_VALS) {
         if(g_data.temp == 1)
             curr = str_fen;
         else if(g_data.temp == 2)
@@ -56,7 +58,7 @@ inline void menu_display_iron(void) {
 */
     char buf[16+1];
 
-    if(g_data.update_screen & UPDATE_SCREEN_MENU) {
+    if(g_ui_update_screen & UPDATE_SCREEN_MENU) {
         lcd_clear();
 
         lcd_xy(0, 0);
@@ -66,7 +68,7 @@ inline void menu_display_iron(void) {
         //lcd_str_P(str_iron);
     }
 
-    if(g_data.update_screen & UPDATE_SCREEN_VALS) {
+    if(g_ui_update_screen & UPDATE_SCREEN_VALS) {
 
         sprintf(buf, "%04d / %04d \337C", g_data.iron.temp, g_data.iron.temp_need);
 
@@ -81,7 +83,7 @@ inline void menu_display_iron(void) {
         //lcd_char('H');
     }
 
-    if(g_data.update_screen & UPDATE_SCREEN_ERROR) {
+    if(g_ui_update_screen & UPDATE_SCREEN_ERROR) {
         lcd_clear();
 
         lcd_xy(0, 0);
@@ -93,14 +95,17 @@ inline void menu_display_iron(void) {
 }
 
 PT_THREAD(ui_pt_update_display(struct pt *pt)) {
+    static TIMER_T timer;
+
     PT_BEGIN(pt);
 
+    TIMER_INIT(timer, UI_UPDATE_TIME);
     for(;;) {
+        PT_WAIT_UNTIL(pt, !(g_ui_update_screen & UPDATE_SCREEN_CLEAR) &&
+                      TIMER_ENDED(timer));
+        TIMER_INIT(timer, UI_UPDATE_TIME);
 
-        PT_WAIT_UNTIL(pt, g_data.update_screen & UPDATE_SCREEN_CLEAR);
-
-
-        switch(g_data.menu) {
+        switch(g_ui_menu) {
             case MENU_IRON:
                 menu_display_iron();
                 break;
@@ -122,7 +127,7 @@ PT_THREAD(ui_pt_update_display(struct pt *pt)) {
         }
 
 
-        g_data.update_screen &= ~UPDATE_SCREEN_CLEAR;
+        g_ui_update_screen &= ~UPDATE_SCREEN_CLEAR;
     }
 
     PT_END(pt);
@@ -132,9 +137,10 @@ PT_THREAD(ui_pt_update_display(struct pt *pt)) {
 
 
 void ui_init_mod(void) {
+    //обновить экран первый раз
+    ui_set_update_screen(UPDATE_SCREEN_ALL);
 
-    g_data.update_screen |= UPDATE_SCREEN_ALL; //обновить экран первый раз
-
+    g_ui_menu = MENU_SELECT;
 }
 
 
@@ -151,9 +157,7 @@ void ui_hello_msg(void) {
     lcd_str_P(str_version);
 
     //пискнем
-    ON(P_BUZER);
-    _delay_ms(1000);
-    OFF(P_BUZER);
+    BEEP(1000);
 
     //очистим экран
     lcd_clear();
