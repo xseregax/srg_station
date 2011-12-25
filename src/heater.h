@@ -18,7 +18,7 @@
 #define IRON_PID_MAX 100
 
 
-#define IRON_TEMP_SOFT 50 //температура, до которой нагрев идет в 50% мощности, гр
+#define IRON_TEMP_SOFT 150 //температура, до которой нагрев идет в 50% мощности, гр
 #define IRON_TEMP_MIN 50 //мин температура, гр
 #define IRON_TEMP_MAX 450L //макс температура, гр
 #define IRON_TEMP_STEP 10 //шаг регулировки температуры, гр
