@@ -38,7 +38,7 @@ void send_uart_info(TPCInfo *info) {
 }
 
 
-
+/*
 //для регулирования мощности
 PGM(uint16_t gPowerMas[]) = {
     0,	//0%, 0ms, 0gr
@@ -143,6 +143,7 @@ PGM(uint16_t gPowerMas[]) = {
     160,	//99%, 0.638ms, 11.484gr
     1,	//100%, 0.002ms, 0.036gr
 };
+*/
 
 TTempZones gIronTempZones[] = {
     TZ_X(TZ_XY0, TZ_XY1),
@@ -230,11 +231,22 @@ uint8_t pid_Controller(uint16_t temp_need, uint16_t temp_curr) {
     return 100 * (uint8_t)out;
 }
 
+/*
 void heater_iron_setpower(uint16_t pow) {
     g_data.iron.power = pow;
 
     ATOMIC_BLOCK(ATOMIC_FORCEON) {
         OCR1A = pgm_read_word(&gPowerMas[pow]);
+    }
+}
+*/
+void heater_iron_setpower(uint16_t pow) {
+    g_data.iron.power = pow;
+
+    ATOMIC_BLOCK(ATOMIC_FORCEON) {
+        //OCR1A = pgm_read_word(&gPowerMas[pow]);
+
+        OCR1A = (uint16_t)(pow * POWER_VAL);
     }
 }
 
@@ -280,19 +292,27 @@ PT_THREAD(iron_pt_manage(struct pt *pt)) {
 
         uint16_t adc = adc_read(ADC_PIN_IRON);
 
-        if(adc > 850) BEEP(100);
+        if(0&&adc > 850) BEEP(100);
 
-        if(adc >= IRON_ADC_ERROR) {
+        if(0&&adc >= IRON_ADC_ERROR) {
             heater_iron_setpower(0);
 
             ui_set_update_screen(UPDATE_SCREEN_ERROR);
             continue;
         }
 
-        if(adc != iron->adc) {
+        if(1||adc != iron->adc) {
             iron->adc = adc;
 
-            iron->temp = find_temp(adc, gIronTempZones, sizeof(gIronTempZones));
+            //iron->temp = find_temp(adc, gIronTempZones, sizeof(gIronTempZones));
+
+            if(iron->temp > iron->temp_need)
+                iron->temp --;
+            else
+                if(iron->temp < iron->temp_need)
+                    iron->temp ++;
+
+
             ui_set_update_screen(UPDATE_SCREEN_VALS);
         }
 
@@ -306,7 +326,6 @@ PT_THREAD(iron_pt_manage(struct pt *pt)) {
             ui_set_update_screen(UPDATE_SCREEN_VALS);
         }
 
-//(g_ui_update_screen & UPDATE_SCREEN_VALS) &&
         if(send_stat) {
             TPCInfo info;
 
@@ -355,7 +374,7 @@ void heater_init_mod(void) {
 }
 
 
-
+/*
 //ZCD
 ISR(INT2_vect) {
 
@@ -375,4 +394,10 @@ ISR(TIMER1_COMPA_vect) {
        _delay_us(SIMISTOR_TIME_ON);
        OFF(P_IRON_PWM);
     }
+}
+*/
+
+//ZCD
+ISR(INT2_vect) {
+
 }

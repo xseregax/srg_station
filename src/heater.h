@@ -11,7 +11,7 @@
 #define IRON_PID_DELTA_T 100
 
 #define IRON_PID_KP 50
-#define IRON_PID_KI 15
+#define IRON_PID_KI 0
 #define IRON_PID_KD 0
 
 #define IRON_PID_MIN 0

@@ -1,8 +1,11 @@
 #ifndef HAL_H
 #define HAL_H
 
-#define TIMER1A_PRESCALE (_BV(CS11) | _BV(CS10))
-#define TIMER1_PRESCALE_OFF (_BV(CS12) | _BV(CS11) | _BV(CS10))
+//#define TIMER1A_PRESCALE (_BV(CS11) | _BV(CS10))
+//#define TIMER1_PRESCALE_OFF (_BV(CS12) | _BV(CS11) | _BV(CS10))
+
+#define POWER_CNT 31250L
+#define POWER_VAL POWER_CNT / 100.0
 
 //вкл станции
 inline void hal_power_on(void) {
@@ -94,6 +97,24 @@ inline void hal_init_pwm(void) {
     DDRD |= t;
     PORTD &= ~t;
 
+    //PWM for Iron
+
+    //stop timer
+    TCCR1B = 0;
+
+    //clear on compare, non-invert, p.111, tbl 45
+    TCCR1A = _BV(COM1A1);
+
+    //p.112, tbl 47, mode=8, prescaler = 256
+    TCCR1B = _BV(WGM13) | (CS12);
+
+    //1sec
+    ICR1 = POWER_VAL;
+
+    //0%
+    OCR1A = 0 * POWER_VAL;
+
+    /*
     //FIM for iron (timers)
     //timer1, CTC, OCR = power
 
@@ -115,6 +136,8 @@ inline void hal_init_pwm(void) {
     TIMSK |= _BV(OCIE1A);
 
     //end FIM (timers)
+*/
+
 }
 
 //инит прерываний
