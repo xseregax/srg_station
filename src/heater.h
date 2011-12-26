@@ -2,10 +2,10 @@
 #define IRON_H
 
 
-#define SIMISTOR_TIME_ON 8 //время для вкл симистора, ms
+#define POWER_MIN 0 //минимальная мощность
+#define POWER_MAX 100 //максимальная мощность
 
-//пид и фаза паяльника
-
+//пид паяльника
 #define IRON_ADC_ERROR 900L //не подключено термосопротивление
 
 #define IRON_PID_DELTA_T 100
@@ -13,10 +13,6 @@
 #define IRON_PID_KP 50
 #define IRON_PID_KI 0
 #define IRON_PID_KD 0
-
-#define IRON_PID_MIN 0
-#define IRON_PID_MAX 100
-
 
 #define IRON_TEMP_SOFT 150 //температура, до которой нагрев идет в 50% мощности, гр
 #define IRON_TEMP_MIN 50 //мин температура, гр

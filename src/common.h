@@ -69,6 +69,8 @@ typedef struct {
     uint16_t adc; //последние значение с adc
 
     uint8_t power; //текущая мощность
+    uint8_t sigma;
+
     uint16_t temp; //текущая температура тены
     uint16_t temp_need; //требуемая температура
 

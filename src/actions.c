@@ -20,6 +20,11 @@ void iron_dec_temp(void) {
     else
         iron->temp_need = IRON_TEMP_MIN;
 
+    if(iron->power > 1)
+        iron->power --;
+    else
+        iron->power = 0;
+g_data.iron.sigma = POWER_MAX;
     ui_set_update_screen(UPDATE_SCREEN_VALS);
 }
 
@@ -31,6 +36,11 @@ void iron_inc_temp(void) {
     else
         iron->temp_need = IRON_TEMP_MAX;
 
+    if(iron->power < 100)
+        iron->power ++;
+    else
+        iron->power = 100;
+g_data.iron.sigma = POWER_MAX;
     ui_set_update_screen(UPDATE_SCREEN_VALS);
 }
 

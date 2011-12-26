@@ -37,114 +37,6 @@ void send_uart_info(TPCInfo *info) {
         uart_send_b(p[i]);
 }
 
-
-/*
-//для регулирования мощности
-PGM(uint16_t gPowerMas[]) = {
-    0,	//0%, 0ms, 0gr
-    2342,	//1%, 9.368ms, 168.624gr
-    2276,	//2%, 9.102ms, 163.836gr
-    2224,	//3%, 8.896ms, 160.128gr
-    2181,	//4%, 8.722ms, 156.996gr
-    2142,	//5%, 8.568ms, 154.224gr
-    2107,	//6%, 8.428ms, 151.704gr
-    2075,	//7%, 8.3ms, 149.4gr
-    2045,	//8%, 8.178ms, 147.204gr
-    2016,	//9%, 8.064ms, 145.152gr
-    1989,	//10%, 7.956ms, 143.208gr
-    1963,	//11%, 7.852ms, 141.336gr
-    1938,	//12%, 7.752ms, 139.536gr
-    1914,	//13%, 7.656ms, 137.808gr
-    1891,	//14%, 7.562ms, 136.116gr
-    1868,	//15%, 7.472ms, 134.496gr
-    1846,	//16%, 7.384ms, 132.912gr
-    1825,	//17%, 7.298ms, 131.364gr
-    1804,	//18%, 7.214ms, 129.852gr
-    1783,	//19%, 7.132ms, 128.376gr
-    1763,	//20%, 7.052ms, 126.936gr
-    1744,	//21%, 6.974ms, 125.532gr
-    1724,	//22%, 6.896ms, 124.128gr
-    1705,	//23%, 6.82ms, 122.76gr
-    1686,	//24%, 6.744ms, 121.392gr
-    1668,	//25%, 6.67ms, 120.06gr
-    1649,	//26%, 6.596ms, 118.728gr
-    1631,	//27%, 6.524ms, 117.432gr
-    1614,	//28%, 6.454ms, 116.172gr
-    1596,	//29%, 6.382ms, 114.876gr
-    1579,	//30%, 6.314ms, 113.652gr
-    1561,	//31%, 6.244ms, 112.392gr
-    1544,	//32%, 6.176ms, 111.168gr
-    1527,	//33%, 6.108ms, 109.944gr
-    1510,	//34%, 6.04ms, 108.72gr
-    1493,	//35%, 5.972ms, 107.496gr
-    1477,	//36%, 5.906ms, 106.308gr
-    1460,	//37%, 5.84ms, 105.12gr
-    1444,	//38%, 5.774ms, 103.932gr
-    1427,	//39%, 5.708ms, 102.744gr
-    1411,	//40%, 5.644ms, 101.592gr
-    1395,	//41%, 5.578ms, 100.404gr
-    1379,	//42%, 5.514ms, 99.252gr
-    1363,	//43%, 5.45ms, 98.1gr
-    1347,	//44%, 5.386ms, 96.948gr
-    1331,	//45%, 5.322ms, 95.796gr
-    1315,	//46%, 5.258ms, 94.644gr
-    1299,	//47%, 5.194ms, 93.492gr
-    1283,	//48%, 5.13ms, 92.34gr
-    1267,	//49%, 5.066ms, 91.188gr
-    1251,	//50%, 5.002ms, 90.036gr
-    1235,	//51%, 4.938ms, 88.884gr
-    1219,	//52%, 4.876ms, 87.768gr
-    1203,	//53%, 4.812ms, 86.616gr
-    1187,	//54%, 4.748ms, 85.464gr
-    1171,	//55%, 4.684ms, 84.312gr
-    1155,	//56%, 4.62ms, 83.16gr
-    1139,	//57%, 4.556ms, 82.008gr
-    1123,	//58%, 4.49ms, 80.82gr
-    1107,	//59%, 4.426ms, 79.668gr
-    1091,	//60%, 4.362ms, 78.516gr
-    1074,	//61%, 4.296ms, 77.328gr
-    1058,	//62%, 4.23ms, 76.14gr
-    1041,	//63%, 4.164ms, 74.952gr
-    1025,	//64%, 4.098ms, 73.764gr
-    1008,	//65%, 4.032ms, 72.576gr
-    992,	//66%, 3.966ms, 71.388gr
-    975,	//67%, 3.898ms, 70.164gr
-    958,	//68%, 3.83ms, 68.94gr
-    941,	//69%, 3.762ms, 67.716gr
-    923,	//70%, 3.692ms, 66.456gr
-    906,	//71%, 3.622ms, 65.196gr
-    888,	//72%, 3.552ms, 63.936gr
-    870,	//73%, 3.48ms, 62.64gr
-    852,	//74%, 3.408ms, 61.344gr
-    834,	//75%, 3.336ms, 60.048gr
-    815,	//76%, 3.26ms, 58.68gr
-    797,	//77%, 3.186ms, 57.348gr
-    778,	//78%, 3.11ms, 55.98gr
-    758,	//79%, 3.032ms, 54.576gr
-    739,	//80%, 2.954ms, 53.172gr
-    718,	//81%, 2.872ms, 51.696gr
-    698,	//82%, 2.79ms, 50.22gr
-    677,	//83%, 2.706ms, 48.708gr
-    656,	//84%, 2.622ms, 47.196gr
-    634,	//85%, 2.534ms, 45.612gr
-    611,	//86%, 2.442ms, 43.956gr
-    588,	//87%, 2.35ms, 42.3gr
-    564,	//88%, 2.254ms, 40.572gr
-    539,	//89%, 2.154ms, 38.772gr
-    513,	//90%, 2.05ms, 36.9gr
-    485,	//91%, 1.94ms, 34.92gr
-    457,	//92%, 1.826ms, 32.868gr
-    427,	//93%, 1.706ms, 30.708gr
-    394,	//94%, 1.576ms, 28.368gr
-    359,	//95%, 1.436ms, 25.848gr
-    321,	//96%, 1.282ms, 23.076gr
-    277,	//97%, 1.108ms, 19.944gr
-    226,	//98%, 0.904ms, 16.272gr
-    160,	//99%, 0.638ms, 11.484gr
-    1,	//100%, 0.002ms, 0.036gr
-};
-*/
-
 TTempZones gIronTempZones[] = {
     TZ_X(TZ_XY0, TZ_XY1),
     TZ_X(TZ_XY1, TZ_XY2),
@@ -217,7 +109,7 @@ uint8_t pid_Controller(uint16_t temp_need, uint16_t temp_curr) {
     pre_error = error;
 
     if(temp_curr < IRON_TEMP_SOFT && error > 0) {
-        return IRON_PID_MAX / 4;
+        return POWER_MAX / 4;
     }
 
     if(out < 0.0)
@@ -241,12 +133,10 @@ void heater_iron_setpower(uint16_t pow) {
 }
 */
 void heater_iron_setpower(uint16_t pow) {
-    g_data.iron.power = pow;
-
     ATOMIC_BLOCK(ATOMIC_FORCEON) {
-        //OCR1A = pgm_read_word(&gPowerMas[pow]);
+        //g_data.iron.power = pow;
 
-        OCR1A = (uint16_t)(pow * POWER_VAL);
+        //g_data.iron.sigma = POWER_MAX;
     }
 }
 
@@ -318,9 +208,10 @@ PT_THREAD(iron_pt_manage(struct pt *pt)) {
 
         uint8_t pow;
 
-        pow = pid_Controller(iron->temp_need, iron->temp);
+        //pow = pid_Controller(iron->temp_need, iron->temp);
+        pow = iron->power;
 
-        if(pow != iron->power) {
+        if(1 || pow != iron->power) {
 
             heater_iron_setpower(pow);
             ui_set_update_screen(UPDATE_SCREEN_VALS);
@@ -371,33 +262,40 @@ PT_THREAD(heater_pt_manage(struct pt *pt)) {
 void heater_init_mod(void) {
 
     heater_iron_off();
+    heater_fen_off();
 }
 
 
-/*
 //ZCD
 ISR(INT2_vect) {
 
+#if 0
+    static uint8_t numperiod = 0;
+    if(numperiod++ & 1) return;
+#endif
+
     if(g_data.iron.on == _ON) {
-        TCNT1 = 0x00;
-        TCCR1B |= TIMER1A_PRESCALE; //вкл таймер 1
+         int8_t delta;
+
+         if(g_data.iron.sigma > POWER_MAX) {
+            delta = -POWER_MAX;
+
+            TCNT1 = 0x00;
+            TCCR1B |= TIMER1A_PRESCALE; //вкл таймер 1
+        } else {
+            delta = 0;
+        }
+
+        g_data.iron.sigma += g_data.iron.power + delta;
     }
 }
 
 ISR(TIMER1_COMPA_vect) {
 
-    //выкл таймер 1
-    TCCR1B &= ~TIMER1_PRESCALE_OFF;
-
-    if(g_data.iron.on == _ON) {
-       ON(P_IRON_PWM);
-       _delay_us(SIMISTOR_TIME_ON);
-       OFF(P_IRON_PWM);
+    if(!ACTIVE(P_IRON_PWM))
+        ON(P_IRON_PWM); //вкл симмистор
+    else {
+        OFF(P_IRON_PWM);
+        TCCR1B &= ~TIMER1A_PRESCALE_OFF; //выкл таймер 1
     }
-}
-*/
-
-//ZCD
-ISR(INT2_vect) {
-
 }

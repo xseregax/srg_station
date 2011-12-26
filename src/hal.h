@@ -1,11 +1,11 @@
 #ifndef HAL_H
 #define HAL_H
 
-//#define TIMER1A_PRESCALE (_BV(CS11) | _BV(CS10))
-//#define TIMER1_PRESCALE_OFF (_BV(CS12) | _BV(CS11) | _BV(CS10))
-
-#define POWER_CNT 31250L
-#define POWER_VAL POWER_CNT / 100.0
+//
+#define TIMER1A_PRESCALE (_BV(CS11) | _BV(CS10))
+#define TIMER1A_PRESCALE_OFF (_BV(CS12) | _BV(CS11) | _BV(CS10))
+//prescaler 64, so 16Mhz/64/250 = 1ms
+#define TIMER1A_TIME 150
 
 //вкл станции
 inline void hal_power_on(void) {
@@ -63,8 +63,6 @@ inline void hal_init_buttons(void) {
 }
 
 
-
-
 //инит adc
 inline void hal_init_adc(void) {
     uint8_t t;
@@ -97,47 +95,13 @@ inline void hal_init_pwm(void) {
     DDRD |= t;
     PORTD &= ~t;
 
-    //PWM for Iron
+    //timer1, CTC
+    TCCR1A = 0; //mode normal
+    TCCR1B = _BV(WGM12); //mode 4, CTC, def off
+    TCNT1 = 0; //текущий счетчик
+    OCR1A = TIMER1A_TIME; //для сравнения
 
-    //stop timer
-    TCCR1B = 0;
-
-    //clear on compare, non-invert, p.111, tbl 45
-    TCCR1A = _BV(COM1A1);
-
-    //p.112, tbl 47, mode=8, prescaler = 256
-    TCCR1B = _BV(WGM13) | (CS12);
-
-    //1sec
-    ICR1 = POWER_VAL;
-
-    //0%
-    OCR1A = 0 * POWER_VAL;
-
-    /*
-    //FIM for iron (timers)
-    //timer1, CTC, OCR = power
-
-    //prescale off
-    TCCR1B &= ~TIMER1_PRESCALE_OFF;
-
-    //mode normal
-    //TCCR1A = 0;
-
-    //mode 4, CTC, prescaler to 64 (250kHz), def off
-    TCCR1B |= _BV(WGM12);
-
-    //текущий счетчик
-    TCNT1 = 0;
-    //для сравнения
-    OCR1A = 0;
-
-    //вкл прерыв. таймер1
-    TIMSK |= _BV(OCIE1A);
-
-    //end FIM (timers)
-*/
-
+    TIMSK |= _BV(OCIE1A); //вкл прерыв. таймер1
 }
 
 //инит прерываний
@@ -151,8 +115,9 @@ inline void hal_init_isr(void) {
     PORTB &= ~t;
 
     //для ZCD
-    MCUCSR &= ~_BV(ISC2); //ниспадающий фронт
-    GICR |= _BV(INT2); //вкл прерывание
+    //MCUCSR &= ~_BV(ISC2); //задний фронт
+    MCUCSR |= _BV(ISC2); //передний фронт
+    GICR |= _BV(INT2); //вкл прерывание int2
 
 }
 
