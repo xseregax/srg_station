@@ -93,10 +93,197 @@ void pid_init(void) {
 }
 
 
-
 #include <stdlib.h>
 #include <math.h>
+
+
+
+// These defines are needed for loop timing and PID controller timing
+#define TWENTY_SECONDS (400)
+#define TEN_SECONDS (200)
+#define FIVE_SECONDS (100)
+#define ONE_SECOND (20)
+#define T_50MSEC (50) // Period time of TTimer in msec.
+
+#define GMA_HLIM (100.0) // PID controller upper limit [%]
+#define GMA_LLIM (0.0) // PID controller lower limit [%]
+
+
+typedef struct _pid_params
+{
+    double kc; // Controller gain from Dialog Box
+    double ti; // Time-constant for I action from Dialog Box
+    double td; // Time-constant for D action from Dialog Box
+    double ts; // Sample time [sec.] from Dialog Box
+//    double k_lpf; // Time constant [sec.] for LPF filter
+    double k0; // k0 value for PID controller
+    double k1; // k1 value for PID controller
+    double k2; // k2 value for PID controller
+    double k3; // k3 value for PID controller
+//    double lpf1; // value for LPF filter
+//    double lpf2; // value for LPF filter
+//    int    ts_ticks; // ticks for timer
+//    int    pid_model; // PID Controller type [0..3]
+    double pp; // debug
+    double pi; // debug
+    double pd; // debug
+} pid_params; // struct pid_params
+//--------------------
+
+volatile pid_params pid;
+
+static double ek_1; // e[k-1] = SP[k-1] - PV[k-1] = Tset_hlt[k-1] - Thlt[k-1]
+static double ek_2; // e[k-2] = SP[k-2] - PV[k-2] = Tset_hlt[k-2] - Thlt[k-2]
+static double xk_1; // PV[k-1] = Thlt[k-1]
+static double xk_2; // PV[k-2] = Thlt[k-1]
+
+static double tk_1; //SP[k-1] = Tset_hlt[k-1]
+static double tk_2; //SP[k-2] = Tset_hlt[k-2]
+
+static double yk_1; // y[k-1] = Gamma[k-1]
+static double yk_2; // y[k-2] = Gamma[k-1]
+static double lpf_1; // lpf[k-1] = LPF output[k-1]
+static double lpf_2; // lpf[k-2] = LPF output[k-2]
+
+
+
+void init_pid4(volatile pid_params *p) {
+/*------------------------------------------------------------------
+Purpose : This function initialises the Allen Bradley Type A PID
+controller.
+Variables: p: pointer to struct containing all PID parameters
+     Kc * Ts
+k0 = ------- (for I-term)
+        Ti
+          Td
+k1 = Kc * -- (for D-term)
+          Ts
+
+The LPF parameters are also initialised here:
+lpf[k] = lpf1 * lpf[k-1] + lpf2 * lpf[k-2]
+Returns : No values are returned
+------------------------------------------------------------------*/
+
+    p->kc = 20;
+    p->ti = 100;
+    p->td = 0;
+
+    p->ts = IRON_PID_DELTA_T;
+
+/*
+    p->ts_ticks = (int)(p->ts / T_50MSEC);
+    if (p->ts_ticks > TWENTY_SECONDS) {
+        p->ts_ticks = TWENTY_SECONDS;
+    }
+*/
+    if (p->ti == 0.0) {
+        p->k0 = 0.0;
+    }
+    else {
+        p->k0 = p->kc * p->ts / p->ti;
+    } // else
+
+    p->k1 = p->kc * p->td / p->ts;
+    //p->lpf1 = (2.0 * p->k_lpf - p->ts) / (2.0 * p->k_lpf + p->ts);
+    //p->lpf2 = p->ts / (2.0 * p->k_lpf + p->ts);
+
+} // init_pid3()
+
+
+void pid_reg4(double xk, double *yk, double tk, volatile pid_params *p, int vrg) {
+/*------------------------------------------------------------------
+Purpose : This function implements the Takahashi PID controller,
+which is a type C controller: the P and D term are no
+longer dependent on the set-point, only on PV (which is Thlt).
+The D term is NOT low-pass filtered.
+This function should be called once every TS seconds.
+Variables:
+xk : The input variable x[k] (= measured temperature)
+*yk : The output variable y[k] (= gamma value for power electronics)
+tset : The setpoint value for the temperature
+*p : Pointer to struct containing PID parameters
+vrg: Release signal: 1 = Start control, 0 = disable PID controller
+Returns : No values are returned
+------------------------------------------------------------------*/
+    *yk = (double)g_data.iron.power;
+
+    double ek; // e[k]
+
+    ek = tk - xk; // calculate e[k] = SP[k] - PV[k]
+
+    //-----------------------------------------------------------
+    // Calculate PID controller:
+    // y[k] = y[k-1] + Kc*(PV[k-1] - PV[k] +
+    //        Ts*e[k]/Ti +
+    //        Td/Ts*(2*PV[k-1] - PV[k] - PV[k-2]))
+    //
+    // y[k] = y[k-1] + Kc*(SP[k] - PV[k] - (SP[k-1] - PV[k-1]) +
+    //        Ts*e[k]/Ti +
+    //        Td/Ts*(SP[k] - PV[k] - 2*(SP[k-1] - PV[k-1]) + SP[k-2] - PV[k-2]))
+    //-----------------------------------------------------------
+
+    //set point temp not changed
+
+    // y[k] = y[k-1] + Kc*(PV[k-1] - PV[k]) +
+    p->pp = p->kc * (xk_1 - xk);
+
+    // Kc*Ts/Ti * e[k] +
+    p->pi = p->k0 * ek;
+
+    //Kc*Td/Ts* (2*PV[k-1] - PV[k] - PV[k-2]))
+    p->pd = p->k1 * (2.0 * xk_1 - xk - xk_2);
+
+    *yk += p->pp + p->pi + p->pd;
+
+
+    //set point temp changed
+/*
+    // y[k] = y[k-1] + Kc*(SP[k] - PV[k] - (SP[k-1] - PV[k-1])) +
+    p->pp = p->kc * (tk - xk - (tk_1 - xk_1));
+
+    // Kc*Ts/Ti * e[k] +
+    p->pi = p->k0 * ek;
+
+    //Kc*Td/Ts* (SP[k] - PV[k] - 2*(SP[k-1] - PV[k-1]) + SP[k-2] - PV[k-2]))
+    p->pd = p->k1 * (tk - xk - 2.0 * (tk_1 - xk_1) + tk_2 - xk_2);
+
+    *yk += p->pp + p->pi + p->pd;
+*/
+
+    xk_2 = xk_1; // PV[k-2] = PV[k-1]
+    xk_1 = xk;   // PV[k-1] = PV[k]
+
+  //  tk_2 = tk_1; // SP[k-2] = SP[k-1]
+  //  tk_1 = tk; // SP[k-1] = SP[k]
+
+
+    // limit y[k] to GMA_HLIM and GMA_LLIM
+    if (*yk > GMA_HLIM) {
+        *yk = GMA_HLIM;
+    }
+    else
+    if (*yk < GMA_LLIM) {
+        *yk = GMA_LLIM;
+    } // else
+
+} // pid_reg4()
+
+
 uint8_t pid_Controller(uint16_t temp_need, uint16_t temp_curr) {
+    double out = 0.0;
+
+    pid_reg4((double)temp_curr, &out, (double)temp_need, &pid, 1);
+
+    if(temp_curr < IRON_TEMP_SOFT && temp_curr < temp_need) {
+        return POWER_MAX / 5;
+    }
+
+    return (uint8_t) ceil(out);
+}
+
+
+
+uint8_t pid_Controller1(uint16_t temp_need, uint16_t temp_curr) {
 
     int16_t error, i_val, d_val, power;
     uint16_t p_val;
@@ -163,6 +350,8 @@ void heater_iron_on(void) {
     g_data.iron.temp_need = IRON_TEMP_MIN;
 
     heater_iron_setpower(0);
+
+    init_pid4(&pid);
 
     g_data.iron.on = _ON;
 }
