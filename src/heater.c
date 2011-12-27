@@ -63,48 +63,88 @@ uint16_t find_temp(uint16_t adc, const TTempZones* tempzones, uint8_t count) {
 }
 
 
-volatile uint8_t pid_p = IRON_PID_KP;
-volatile uint8_t pid_i = IRON_PID_KI;
-volatile uint8_t pid_d = IRON_PID_KD;
+
+
+#define IRON_PID_KP (1.0 * PID_SCALING)
+#define IRON_PID_KI (0 * PID_SCALING)
+#define IRON_PID_KD (0 * PID_SCALING)
+
+#define IRON_PID_MAXI (POWER_MAX / 2)
+
+#define IRON_PID_MAX_ERROR (POWER_MAX / (IRON_PID_KP + 1))
+#define IRON_PID_MIN_ERROR 0
+
+#define IRON_PID_MAX_SUMERROR (IRON_PID_MAXI / (IRON_PID_KI + 1))
+#define IRON_PID_MIN_SUMERROR 0
+
+volatile uint16_t pid_p = IRON_PID_KP;
+volatile uint16_t pid_i = IRON_PID_KI;
+volatile uint16_t pid_d = IRON_PID_KD;
+
+
+
 volatile uint8_t send_stat = 1;
 
-static volatile double pre_error = 0;
-static volatile double integral = 0;
+static volatile int16_t pre_error = 0;
+static volatile int16_t integ = 0;
 
 void pid_init(void) {
-    pre_error = integral = 0;
+    pre_error = integ = 0;
 }
+
+
 
 #include <stdlib.h>
 #include <math.h>
 uint8_t pid_Controller(uint16_t temp_need, uint16_t temp_curr) {
-    double error, out;
+
+    int16_t error, i_val, d_val, power;
+    uint16_t p_val;
 
     error = (int16_t)(temp_need - temp_curr);
 
-    integral += error * (IRON_PID_DELTA_T / 1000.0);
+    if(error > IRON_PID_MAX_ERROR)
+        p_val = POWER_MAX;
+    else
+    if(error <= IRON_PID_MIN_ERROR)
+        p_val = POWER_MIN;
+    else
+        p_val = IRON_PID_KP * error;
 
-    out = (1.0 / pid_d) * (
-        error +
-        (1.0 / pid_i) * integral +
-        pid_d * (error - pre_error) / (IRON_PID_DELTA_T / 1000.0)
-    );
+    integ += error;
+
+    if(integ > IRON_PID_MAX_SUMERROR) {
+        integ = IRON_PID_MAX_SUMERROR;
+        i_val = IRON_PID_MAXI;
+    }
+    else
+    if(integ < -IRON_PID_MAX_SUMERROR) {
+        integ = -IRON_PID_MAX_SUMERROR;
+        i_val = -IRON_PID_MAXI;
+    }
+    else {
+        i_val = IRON_PID_KI * integ;
+    }
+
+
+    d_val = IRON_PID_KD * (error - pre_error);
 
     pre_error = error;
 
     if(temp_curr < IRON_TEMP_SOFT && error > 0) {
-        return POWER_MAX / 4;
+        return POWER_MAX / 5;
     }
 
-    if(out < 0.0)
-        out = 0;
+    power = (p_val + i_val + d_val) / PID_SCALING;
+
+    if(power < POWER_MIN)
+        power = POWER_MIN;
     else
-    if(out > 1.0) {
-        out = 1;
+    if(power > POWER_MAX) {
+        power = POWER_MAX;
     }
-    else out = ceil(out);
 
-    return 100 * (uint8_t)out;
+    return power;
 }
 
 void heater_iron_setpower(uint8_t pow) {
@@ -121,6 +161,8 @@ void heater_iron_on(void) {
     memset((void*) &g_data.iron, 0, sizeof(TIron));
 
     g_data.iron.temp_need = IRON_TEMP_MIN;
+
+    heater_iron_setpower(0);
 
     g_data.iron.on = _ON;
 }
@@ -155,36 +197,32 @@ PT_THREAD(iron_pt_manage(struct pt *pt)) {
 
         uint16_t adc = adc_read(ADC_PIN_IRON);
 
-        if(0&&adc > 850) BEEP(100);
-
-        if(0&&adc >= IRON_ADC_ERROR) {
+        if(adc >= IRON_ADC_ERROR) {
             heater_iron_setpower(0);
 
             ui_set_update_screen(UPDATE_SCREEN_ERROR);
             continue;
         }
 
-        if(1||adc != iron->adc) {
+        if(adc >= IRON_ADC_HOT) {
+            heater_iron_setpower(0);
+
+            BEEP(1000); //beep and reset with watchdog
+        }
+
+        if(adc != iron->adc) {
             iron->adc = adc;
 
-            //iron->temp = find_temp(adc, gIronTempZones, sizeof(gIronTempZones));
-
-            if(iron->temp > iron->temp_need)
-                iron->temp --;
-            else
-                if(iron->temp < iron->temp_need)
-                    iron->temp ++;
-
+            iron->temp = find_temp(adc, gIronTempZones, sizeof(gIronTempZones));
 
             ui_set_update_screen(UPDATE_SCREEN_VALS);
         }
 
         uint8_t pow;
 
-        //pow = pid_Controller(iron->temp_need, iron->temp);
-        pow = iron->power;
+        pow = pid_Controller(iron->temp_need, iron->temp);
 
-        if(1 || pow != iron->power) {
+        if(pow != iron->power) {
 
             heater_iron_setpower(pow);
             ui_set_update_screen(UPDATE_SCREEN_VALS);
@@ -242,9 +280,9 @@ void heater_init_mod(void) {
 //ZCD
 ISR(INT2_vect) {
 
-#if 0
+#if FULL_PERIOD == 1
     static uint8_t numperiod = 0;
-    if(numperiod++ & 1) return;
+    if(numperiod++ & 0b01) return;
 #endif
 
     if(g_data.iron.on == _ON) {

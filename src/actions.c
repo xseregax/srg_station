@@ -19,12 +19,6 @@ void iron_dec_temp(void) {
     else
         iron->temp_need = IRON_TEMP_MIN;
 
-    if(iron->power > 1)
-        iron->power --;
-    else
-        iron->power = 0;
-    heater_iron_setpower(iron->power);
-
     ui_set_update_screen(UPDATE_SCREEN_VALS);
 }
 
@@ -35,12 +29,6 @@ void iron_inc_temp(void) {
         iron->temp_need += IRON_TEMP_STEP;
     else
         iron->temp_need = IRON_TEMP_MAX;
-
-    if(iron->power < 100)
-        iron->power ++;
-    else
-        iron->power = 100;
-    heater_iron_setpower(iron->power);
 
     ui_set_update_screen(UPDATE_SCREEN_VALS);
 }

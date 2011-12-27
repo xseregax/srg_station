@@ -1,7 +1,7 @@
 #ifndef UI_H
 #define UI_H
 
-#define UI_UPDATE_TIME 500
+#define UI_UPDATE_TIME 250
 
 #define BEEP(delay) do { ON(P_BUZER); _delay_ms(delay); OFF(P_BUZER); } while(0)
 
