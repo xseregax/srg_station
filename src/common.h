@@ -43,7 +43,7 @@
 
 #define AVR_RESET do { cli(); wdt_reset(); wdt_enable( WDTO_15MS ); while(1); } while (0)
 
-#define _ON 1
+#define _ON  1
 #define _OFF 0
 
 
@@ -54,13 +54,9 @@ typedef enum { ACT_NONE, ACT_PUSH, ACT_PUSH_LONG, ACT_ROTATE_LEFT, ACT_ROTATE_RI
 typedef enum { NM_NONE, NM_BUTTON1, NM_BUTTON2, NM_BUTTON3, NM_BUTTON4,
                     NM_ENCBUTTON, NM_ENCROTATE, NM_BUTTON1_ENC } TActElements;
 
-
-//комманда на выполнение
-typedef struct {
-    unsigned active: 1;
-    TActElements name; //кто
-    TActions action; //действие
-} TActionCmd;
+//список элементов в меню
+//uses for g_ui_menu
+typedef enum { MENU_SELECT, MENU_IRON, MENU_FEN, MENU_DREL } TMenuStates;
 
 
 typedef struct {
@@ -79,9 +75,12 @@ typedef struct {
 
 
 typedef struct {
+    TMenuStates menu;
+    uint8_t update_screen;
+
     uint8_t temp; //для временного юзания
 
-    TIron iron;
+    TIron iron; //параметры паяльника
 
 } TGlobalData;
 

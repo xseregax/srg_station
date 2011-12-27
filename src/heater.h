@@ -20,6 +20,26 @@
 #define IRON_TEMP_STEP 10 //шаг регулировки температуры, гр
 
 
+
+typedef struct {
+    uint8_t header;
+
+    uint8_t type;
+    uint16_t value1;
+    uint16_t value2;
+    uint16_t value3;
+    uint16_t value4;
+
+    uint8_t crc;
+} TPCInfo;
+
+#define PCINFO_HEADER 0xDE
+#define PCINFO_TYPE_IRON 0x01
+
+#define PCINFO_TYPE_PRINT 0x05
+
+
+
 //апроксимация температуры по контрольным точкам
 typedef struct {
     uint16_t y1; //adc
@@ -54,12 +74,13 @@ x = (y - y0) * a + x0
 void heater_iron_on(void);
 void heater_iron_off(void);
 
+void heater_iron_setpower(uint8_t pow);
+
 void heater_fen_on(void);
 void heater_fen_off(void);
 
 void heater_init_mod(void);
 PT_THREAD(heater_pt_manage(struct pt *pt));
-
 
 
 extern volatile uint8_t pid_p;

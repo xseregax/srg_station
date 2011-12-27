@@ -7,7 +7,6 @@ volatile TActionCmd g_action_cmd;
 
 //обнулить состояние текущей комманды
 inline void actions_init_cmd() {
-    //memset((void*)&g_action_cmd, 0, sizeof(TActionCmd));
     g_action_cmd.active = _OFF;
 }
 
@@ -24,7 +23,8 @@ void iron_dec_temp(void) {
         iron->power --;
     else
         iron->power = 0;
-g_data.iron.sigma = POWER_MAX;
+    heater_iron_setpower(iron->power);
+
     ui_set_update_screen(UPDATE_SCREEN_VALS);
 }
 
@@ -40,12 +40,13 @@ void iron_inc_temp(void) {
         iron->power ++;
     else
         iron->power = 100;
-g_data.iron.sigma = POWER_MAX;
+    heater_iron_setpower(iron->power);
+
     ui_set_update_screen(UPDATE_SCREEN_VALS);
 }
 
 void menu_select_main(void) {
-    g_ui_menu = MENU_SELECT;
+    g_data.menu = MENU_SELECT;
     g_data.temp = 0;
 
     heater_iron_off();
@@ -79,17 +80,17 @@ void menu_select_rotate_right(void) {
 void menu_select_mode(void) {
     switch(g_data.temp) {
         case 1:
-            g_ui_menu = MENU_FEN;
+            g_data.menu = MENU_FEN;
 
             heater_iron_off();
             heater_fen_on();
             break;
         case 2:
-            g_ui_menu = MENU_DREL;
+            g_data.menu = MENU_DREL;
 
             break;
         default:
-            g_ui_menu = MENU_IRON;
+            g_data.menu = MENU_IRON;
 
             heater_iron_on();
             heater_fen_off();
@@ -191,7 +192,7 @@ PT_THREAD(actions_pt_check_commands(struct pt *pt)) {
 
             if(g_action_cmd.action == ACT_PUSH) {
 
-                if(g_ui_menu == MENU_SELECT) {
+                if(g_data.menu == MENU_SELECT) {
                     menu_select_mode();
                 } //MENU_SELECT
 
@@ -204,7 +205,7 @@ PT_THREAD(actions_pt_check_commands(struct pt *pt)) {
 
             if(g_action_cmd.action == ACT_PUSH_LONG) {
 
-                if(g_ui_menu != MENU_SELECT) {
+                if(g_data.menu != MENU_SELECT) {
                     menu_select_main();
                 } //NOT MENU_SELECT
 
@@ -217,11 +218,11 @@ PT_THREAD(actions_pt_check_commands(struct pt *pt)) {
 
             if(g_action_cmd.action == ACT_ROTATE_LEFT) {
 
-                if(g_ui_menu == MENU_IRON) {
+                if(g_data.menu == MENU_IRON) {
                     iron_dec_temp();
                 } //MENU_IRON
                 else
-                if(g_ui_menu == MENU_SELECT) {
+                if(g_data.menu == MENU_SELECT) {
                     menu_select_rotate_left();
                 } //MENU_SELECT
 
@@ -229,11 +230,11 @@ PT_THREAD(actions_pt_check_commands(struct pt *pt)) {
             else
             if(g_action_cmd.action == ACT_ROTATE_RIGHT) {
 
-                if(g_ui_menu == MENU_IRON) {
+                if(g_data.menu == MENU_IRON) {
                     iron_inc_temp();
                 } //MENU_IRON
                 else
-                if(g_ui_menu == MENU_SELECT) {
+                if(g_data.menu == MENU_SELECT) {
                     menu_select_rotate_right();
                 } //MENU_SELECT
 

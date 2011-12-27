@@ -4,22 +4,16 @@
 #include "ui.h"
 #include "heater.h"
 
-typedef struct {
-    uint8_t header;
 
-    uint8_t type;
-    uint16_t value1;
-    uint16_t value2;
-    uint16_t value3;
-    uint16_t value4;
+TTempZones gIronTempZones[] = {
+    TZ_X(TZ_XY0, TZ_XY1),
+    TZ_X(TZ_XY1, TZ_XY2),
+    TZ_X(TZ_XY2, TZ_XY3),
+    TZ_X(TZ_XY3, TZ_XY4),
+    TZ_X(TZ_XY4, TZ_XY5),
+    TZ_X(TZ_XY5, TZ_XY6),
+};
 
-    uint8_t crc;
-} TPCInfo;
-
-#define PCINFO_HEADER 0xDE
-#define PCINFO_TYPE_IRON 0x01
-
-#define PCINFO_TYPE_PRINT 0x05
 
 #include <util/crc16.h>
 void send_uart_info(TPCInfo *info) {
@@ -36,16 +30,6 @@ void send_uart_info(TPCInfo *info) {
     for(i = 0; i < sizeof(TPCInfo); i++)
         uart_send_b(p[i]);
 }
-
-TTempZones gIronTempZones[] = {
-    TZ_X(TZ_XY0, TZ_XY1),
-    TZ_X(TZ_XY1, TZ_XY2),
-    TZ_X(TZ_XY2, TZ_XY3),
-    TZ_X(TZ_XY3, TZ_XY4),
-    TZ_X(TZ_XY4, TZ_XY5),
-    TZ_X(TZ_XY5, TZ_XY6),
-};
-
 
 //читалка adc c пина
 uint16_t adc_read(uint8_t adc_pin)
@@ -123,26 +107,17 @@ uint8_t pid_Controller(uint16_t temp_need, uint16_t temp_curr) {
     return 100 * (uint8_t)out;
 }
 
-/*
-void heater_iron_setpower(uint16_t pow) {
-    g_data.iron.power = pow;
+void heater_iron_setpower(uint8_t pow) {
 
     ATOMIC_BLOCK(ATOMIC_FORCEON) {
-        OCR1A = pgm_read_word(&gPowerMas[pow]);
-    }
-}
-*/
-void heater_iron_setpower(uint16_t pow) {
-    ATOMIC_BLOCK(ATOMIC_FORCEON) {
-        //g_data.iron.power = pow;
+        OFF(P_IRON_PWM);
 
-        //g_data.iron.sigma = POWER_MAX;
+        g_data.iron.power = pow;
+        g_data.iron.sigma = POWER_MAX;
     }
 }
 
 void heater_iron_on(void) {
-    if(g_data.iron.on == _ON) return;
-
     memset((void*) &g_data.iron, 0, sizeof(TIron));
 
     g_data.iron.temp_need = IRON_TEMP_MIN;
@@ -151,11 +126,9 @@ void heater_iron_on(void) {
 }
 
 void heater_iron_off(void) {
-    if(g_data.iron.on == _OFF) return;
+    g_data.iron.on = _OFF;
 
     heater_iron_setpower(0);
-
-    g_data.iron.on = _OFF;
 }
 
 void heater_fen_on(void) {
@@ -284,6 +257,8 @@ ISR(INT2_vect) {
             TCCR1B |= TIMER1A_PRESCALE; //вкл таймер 1
         } else {
             delta = 0;
+
+            OFF(P_IRON_PWM);
         }
 
         g_data.iron.sigma += g_data.iron.power + delta;
@@ -292,10 +267,9 @@ ISR(INT2_vect) {
 
 ISR(TIMER1_COMPA_vect) {
 
-    if(!ACTIVE(P_IRON_PWM))
+    if(g_data.iron.on == _ON) {
         ON(P_IRON_PWM); //вкл симмистор
-    else {
-        OFF(P_IRON_PWM);
-        TCCR1B &= ~TIMER1A_PRESCALE_OFF; //выкл таймер 1
     }
+
+    TCCR1B &= ~TIMER1A_PRESCALE_OFF; //выкл таймер 1
 }

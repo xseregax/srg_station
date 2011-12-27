@@ -12,7 +12,7 @@ inline void button_init() {
 
 //проверка нажатия кнопки
 inline void button_check_press() {
-    if(!g_button_state.on) { //если нажатие не точное
+    if(g_button_state.on == _OFF) { //если нажатие не точное
 
         if(g_button_state.cnt > BUTTON_DEBOUNCE) { //antiдребезг
             g_button_state.on = _ON;
@@ -35,7 +35,8 @@ inline void button_check_press() {
         if(g_button_state.repeat >= BUTTON_REPEAT) {
 butt_on:
             //добавим действие
-            actions_set_cmd(g_button_state.name, (g_button_state.plong == _ON? ACT_PUSH_LONG: ACT_PUSH));
+            actions_set_cmd(g_button_state.name,
+                (g_button_state.plong == _ON? ACT_PUSH_LONG: ACT_PUSH));
 
             g_button_state.repeat = 0;
         }
@@ -110,6 +111,7 @@ inline void button_check(TActElements name, TActions encact) {
         }
     }
     else if(g_button_state.on == _ON) {
+        //отпустили кнопень
         if(g_button_state.release >= BUTTON_RELEASE) {
             button_init();
         }
@@ -129,9 +131,7 @@ PT_THREAD(input_pt_check_encoder(struct pt *pt)) {
         PT_WAIT_UNTIL(pt, TIMER_ENDED(timer));
         TIMER_NEXT(timer, ENCODER_SLEEP);
 
-        TActions encact;
-
-        encact = encoder_poll();
+        TActions encact = encoder_poll();
         if(encact != ACT_NONE) {
             button_check(NM_ENCROTATE, encact);
         }
@@ -151,9 +151,7 @@ PT_THREAD(input_pt_check_buttons(struct pt *pt)) {
         PT_WAIT_UNTIL(pt, TIMER_ENDED(timer));
         TIMER_NEXT(timer, BUTTON_SLEEP);
 
-        TActElements active_button;
-
-        active_button = NM_NONE;
+        TActElements active_button = NM_NONE;
 
         if(ACTIVE(P_BUTTON1) && ACTIVE(P_ENCODER_BUTTON))
             active_button = NM_BUTTON1_ENC;

@@ -1,11 +1,9 @@
 #ifndef HAL_H
 #define HAL_H
 
-//
-#define TIMER1A_PRESCALE (_BV(CS11) | _BV(CS10))
-#define TIMER1A_PRESCALE_OFF (_BV(CS12) | _BV(CS11) | _BV(CS10))
-//prescaler 64, so 16Mhz/64/250 = 1ms
-#define TIMER1A_TIME 150
+#define TIMER1A_PRESCALE (_BV(CS11) | _BV(CS10)) //prescaler 64, 250kHz
+#define TIMER1A_PRESCALE_OFF (_BV(CS12) | _BV(CS11) | _BV(CS10)) //timer stop
+#define TIMER1A_TIME 150 //prescaler 64, so 16Mhz/64/250 = 1ms
 
 //вкл станции
 inline void hal_power_on(void) {
@@ -115,7 +113,6 @@ inline void hal_init_isr(void) {
     PORTB &= ~t;
 
     //для ZCD
-    //MCUCSR &= ~_BV(ISC2); //задний фронт
     MCUCSR |= _BV(ISC2); //передний фронт
     GICR |= _BV(INT2); //вкл прерывание int2
 

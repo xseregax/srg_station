@@ -16,6 +16,7 @@
 
 volatile TGlobalData g_data;
 
+
 inline void init_global_data(void) {
     memset((void *)&g_data, 0, sizeof(TGlobalData));
 }
@@ -101,7 +102,7 @@ uint8_t main(void) {
     sei();
 
     while(1) {
-        //
+        //обслужим нагреватели
         heater_pt_manage(&pt_heater_manage);
 
         //проверим нажатие кнопок

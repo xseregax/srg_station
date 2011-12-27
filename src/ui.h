@@ -15,14 +15,6 @@
 
 #define UPDATE_SCREEN_ALL (UPDATE_SCREEN_MENU|UPDATE_SCREEN_VALS)
 
-//список элементов в меню
-//uses for g_ui_menu
-typedef enum { MENU_SELECT, MENU_IRON, MENU_FEN, MENU_DREL } TMenuStates;
-
-/* VARIABLES */
-extern volatile uint8_t g_ui_update_screen;
-extern volatile TMenuStates g_ui_menu;
-
 
 extern void hd44780_init(void);
 
@@ -39,7 +31,7 @@ inline void ui_init_lcd(void) {
 
 //установить флаг вывода на экран
 inline void ui_set_update_screen(uint8_t flag) {
-    g_ui_update_screen |= flag;
+    g_data.update_screen |= flag;
 }
 
 

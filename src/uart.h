@@ -44,5 +44,4 @@ void uart_send_str_P(PGM_P pString);
 void uart_send_str(const char* pString);
 
 
-
 #endif // UART_H

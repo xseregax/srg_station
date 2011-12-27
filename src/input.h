@@ -25,7 +25,4 @@ typedef struct {
 void input_init_mod(void);
 PT_THREAD(input_pt_check_inputs(struct pt *pt));
 
-
-extern volatile TButtonState g_button_state;
-
 #endif // INPUT_H
