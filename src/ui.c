@@ -1,5 +1,6 @@
 #include "common.h"
 #include "hd44780.h"
+#include "heater.h"
 #include "ui.h"
 
 PGMSTR(str_iron, "iron");

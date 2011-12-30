@@ -183,11 +183,20 @@ PT_THREAD(actions_pt_check_commands(struct pt *pt)) {
                 if(g_data.menu == MENU_SELECT) {
                     menu_select_mode();
                 } //MENU_SELECT
-
             } //ACT_PUSH
 
 
         } //NM_BUTTON2
+        else
+        if(g_action_cmd.name == NM_BUTTON3) {
+
+            if(g_action_cmd.action == ACT_PUSH) {
+
+                if(g_data.menu == MENU_IRON) {
+                    g_data.iron.out1 = g_data.iron.out1? 0: 1;
+                }
+            } //ACT_PUSH
+        } //NM_BUTTON3
         else
         if(g_action_cmd.name == NM_ENCBUTTON) {
 

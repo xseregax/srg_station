@@ -15,21 +15,7 @@ TTempZones gIronTempZones[] = {
 };
 
 
-#include <util/crc16.h>
-void send_uart_info(TPCInfo *info) {
-    info->header = PCINFO_HEADER;
 
-    uint8_t i, crc = 0;
-    uint8_t *p = (uint8_t*)info;
-
-    for(i = 0; i < sizeof(TPCInfo) - 1; i++)
-        crc = _crc_ibutton_update(crc, p[i]);
-
-    info->crc = crc;
-
-    for(i = 0; i < sizeof(TPCInfo); i++)
-        uart_send_b(p[i]);
-}
 
 //читалка adc c пина
 uint16_t adc_read(uint8_t adc_pin)
@@ -63,40 +49,8 @@ uint16_t find_temp(uint16_t adc, const TTempZones* tempzones, uint8_t count) {
 }
 
 
-
-
-#define IRON_PID_KP (1.0 * PID_SCALING)
-#define IRON_PID_KI (0 * PID_SCALING)
-#define IRON_PID_KD (0 * PID_SCALING)
-
-#define IRON_PID_MAXI (POWER_MAX / 2)
-
-#define IRON_PID_MAX_ERROR (POWER_MAX / (IRON_PID_KP + 1))
-#define IRON_PID_MIN_ERROR 0
-
-#define IRON_PID_MAX_SUMERROR (IRON_PID_MAXI / (IRON_PID_KI + 1))
-#define IRON_PID_MIN_SUMERROR 0
-
-volatile uint16_t pid_p = IRON_PID_KP;
-volatile uint16_t pid_i = IRON_PID_KI;
-volatile uint16_t pid_d = IRON_PID_KD;
-
-
-
-volatile uint8_t send_stat = 1;
-
-static volatile int16_t pre_error = 0;
-static volatile int16_t integ = 0;
-
-void pid_init(void) {
-    pre_error = integ = 0;
-}
-
-
 #include <stdlib.h>
 #include <math.h>
-
-
 
 // These defines are needed for loop timing and PID controller timing
 #define TWENTY_SECONDS (400)
@@ -109,42 +63,13 @@ void pid_init(void) {
 #define GMA_LLIM (0.0) // PID controller lower limit [%]
 
 
-typedef struct _pid_params
-{
-    double kc; // Controller gain from Dialog Box
-    double ti; // Time-constant for I action from Dialog Box
-    double td; // Time-constant for D action from Dialog Box
-    double ts; // Sample time [sec.] from Dialog Box
-//    double k_lpf; // Time constant [sec.] for LPF filter
-    double k0; // k0 value for PID controller
-    double k1; // k1 value for PID controller
-    double k2; // k2 value for PID controller
-    double k3; // k3 value for PID controller
-//    double lpf1; // value for LPF filter
-//    double lpf2; // value for LPF filter
-//    int    ts_ticks; // ticks for timer
-//    int    pid_model; // PID Controller type [0..3]
-    double pp; // debug
-    double pi; // debug
-    double pd; // debug
-} pid_params; // struct pid_params
+
 //--------------------
 
 volatile pid_params pid;
 
-static double ek_1; // e[k-1] = SP[k-1] - PV[k-1] = Tset_hlt[k-1] - Thlt[k-1]
-static double ek_2; // e[k-2] = SP[k-2] - PV[k-2] = Tset_hlt[k-2] - Thlt[k-2]
 static double xk_1; // PV[k-1] = Thlt[k-1]
 static double xk_2; // PV[k-2] = Thlt[k-1]
-
-static double tk_1; //SP[k-1] = Tset_hlt[k-1]
-static double tk_2; //SP[k-2] = Tset_hlt[k-2]
-
-static double yk_1; // y[k-1] = Gamma[k-1]
-static double yk_2; // y[k-2] = Gamma[k-1]
-static double lpf_1; // lpf[k-1] = LPF output[k-1]
-static double lpf_2; // lpf[k-2] = LPF output[k-2]
-
 
 
 void init_pid4(volatile pid_params *p) {
@@ -164,28 +89,20 @@ lpf[k] = lpf1 * lpf[k-1] + lpf2 * lpf[k-2]
 Returns : No values are returned
 ------------------------------------------------------------------*/
 
-    p->kc = 20;
-    p->ti = 100;
-    p->td = 0;
+    //p->kc = 5;
+    //p->ti = 0;
+    //p->td = 0;
 
-    p->ts = IRON_PID_DELTA_T;
+    p->ts = IRON_PID_DELTA_T / 1000.0;
 
-/*
-    p->ts_ticks = (int)(p->ts / T_50MSEC);
-    if (p->ts_ticks > TWENTY_SECONDS) {
-        p->ts_ticks = TWENTY_SECONDS;
-    }
-*/
     if (p->ti == 0.0) {
         p->k0 = 0.0;
     }
     else {
         p->k0 = p->kc * p->ts / p->ti;
-    } // else
+    }
 
     p->k1 = p->kc * p->td / p->ts;
-    //p->lpf1 = (2.0 * p->k_lpf - p->ts) / (2.0 * p->k_lpf + p->ts);
-    //p->lpf2 = p->ts / (2.0 * p->k_lpf + p->ts);
 
 } // init_pid3()
 
@@ -207,8 +124,7 @@ Returns : No values are returned
 ------------------------------------------------------------------*/
     *yk = (double)g_data.iron.power;
 
-    double ek; // e[k]
-
+    double ek, pp, pi, pd;
     ek = tk - xk; // calculate e[k] = SP[k] - PV[k]
 
     //-----------------------------------------------------------
@@ -216,55 +132,33 @@ Returns : No values are returned
     // y[k] = y[k-1] + Kc*(PV[k-1] - PV[k] +
     //        Ts*e[k]/Ti +
     //        Td/Ts*(2*PV[k-1] - PV[k] - PV[k-2]))
-    //
-    // y[k] = y[k-1] + Kc*(SP[k] - PV[k] - (SP[k-1] - PV[k-1]) +
-    //        Ts*e[k]/Ti +
-    //        Td/Ts*(SP[k] - PV[k] - 2*(SP[k-1] - PV[k-1]) + SP[k-2] - PV[k-2]))
     //-----------------------------------------------------------
 
-    //set point temp not changed
+    if(vrg) {
+        // y[k] = y[k-1] + Kc*(PV[k-1] - PV[k]) +
+        pp = p->kc * (xk_1 - xk);
 
-    // y[k] = y[k-1] + Kc*(PV[k-1] - PV[k]) +
-    p->pp = p->kc * (xk_1 - xk);
+        // Kc*Ts/Ti * e[k] +
+        pi = p->k0 * ek;
 
-    // Kc*Ts/Ti * e[k] +
-    p->pi = p->k0 * ek;
+        //Kc*Td/Ts* (2*PV[k-1] - PV[k] - PV[k-2]))
+        pd = p->k1 * (2.0 * xk_1 - xk - xk_2);
 
-    //Kc*Td/Ts* (2*PV[k-1] - PV[k] - PV[k-2]))
-    p->pd = p->k1 * (2.0 * xk_1 - xk - xk_2);
-
-    *yk += p->pp + p->pi + p->pd;
-
-
-    //set point temp changed
-/*
-    // y[k] = y[k-1] + Kc*(SP[k] - PV[k] - (SP[k-1] - PV[k-1])) +
-    p->pp = p->kc * (tk - xk - (tk_1 - xk_1));
-
-    // Kc*Ts/Ti * e[k] +
-    p->pi = p->k0 * ek;
-
-    //Kc*Td/Ts* (SP[k] - PV[k] - 2*(SP[k-1] - PV[k-1]) + SP[k-2] - PV[k-2]))
-    p->pd = p->k1 * (tk - xk - 2.0 * (tk_1 - xk_1) + tk_2 - xk_2);
-
-    *yk += p->pp + p->pi + p->pd;
-*/
+        *yk += pp + pi + pd;
+    }
+    else
+        *yk = pp = pi = pd = 0;
 
     xk_2 = xk_1; // PV[k-2] = PV[k-1]
     xk_1 = xk;   // PV[k-1] = PV[k]
 
-  //  tk_2 = tk_1; // SP[k-2] = SP[k-1]
-  //  tk_1 = tk; // SP[k-1] = SP[k]
-
-
-    // limit y[k] to GMA_HLIM and GMA_LLIM
     if (*yk > GMA_HLIM) {
         *yk = GMA_HLIM;
     }
     else
     if (*yk < GMA_LLIM) {
         *yk = GMA_LLIM;
-    } // else
+    }
 
 } // pid_reg4()
 
@@ -272,7 +166,7 @@ Returns : No values are returned
 uint8_t pid_Controller(uint16_t temp_need, uint16_t temp_curr) {
     double out = 0.0;
 
-    pid_reg4((double)temp_curr, &out, (double)temp_need, &pid, 1);
+    pid_reg4((double)temp_curr, &out, (double)temp_need, &pid, g_data.iron.out1? 1: 0);
 
     if(temp_curr < IRON_TEMP_SOFT && temp_curr < temp_need) {
         return POWER_MAX / 5;
@@ -281,58 +175,6 @@ uint8_t pid_Controller(uint16_t temp_need, uint16_t temp_curr) {
     return (uint8_t) ceil(out);
 }
 
-
-
-uint8_t pid_Controller1(uint16_t temp_need, uint16_t temp_curr) {
-
-    int16_t error, i_val, d_val, power;
-    uint16_t p_val;
-
-    error = (int16_t)(temp_need - temp_curr);
-
-    if(error > IRON_PID_MAX_ERROR)
-        p_val = POWER_MAX;
-    else
-    if(error <= IRON_PID_MIN_ERROR)
-        p_val = POWER_MIN;
-    else
-        p_val = IRON_PID_KP * error;
-
-    integ += error;
-
-    if(integ > IRON_PID_MAX_SUMERROR) {
-        integ = IRON_PID_MAX_SUMERROR;
-        i_val = IRON_PID_MAXI;
-    }
-    else
-    if(integ < -IRON_PID_MAX_SUMERROR) {
-        integ = -IRON_PID_MAX_SUMERROR;
-        i_val = -IRON_PID_MAXI;
-    }
-    else {
-        i_val = IRON_PID_KI * integ;
-    }
-
-
-    d_val = IRON_PID_KD * (error - pre_error);
-
-    pre_error = error;
-
-    if(temp_curr < IRON_TEMP_SOFT && error > 0) {
-        return POWER_MAX / 5;
-    }
-
-    power = (p_val + i_val + d_val) / PID_SCALING;
-
-    if(power < POWER_MIN)
-        power = POWER_MIN;
-    else
-    if(power > POWER_MAX) {
-        power = POWER_MAX;
-    }
-
-    return power;
-}
 
 void heater_iron_setpower(uint8_t pow) {
 
@@ -399,6 +241,7 @@ PT_THREAD(iron_pt_manage(struct pt *pt)) {
             BEEP(1000); //beep and reset with watchdog
         }
 
+        //if(abs(adc - iron->adc) > 1)
         if(adc != iron->adc) {
             iron->adc = adc;
 
@@ -417,19 +260,14 @@ PT_THREAD(iron_pt_manage(struct pt *pt)) {
             ui_set_update_screen(UPDATE_SCREEN_VALS);
         }
 
-        if(send_stat) {
-            TPCInfo info;
+        TPCTempInfo info;
 
-            info.type = PCINFO_TYPE_IRON;
+        info.adc = iron->adc;
+        info.temp = iron->temp;
+        info.temp_need = iron->temp_need;
+        info.power = iron->power;
 
-            info.value1 = iron->temp;
-            info.value2 = iron->power;
-            info.value3 = iron->temp_need;
-            info.value4 = iron->adc;
-
-            send_uart_info(&info);
-
-        }
+        send_uart_msg(HI_IRON, &info, sizeof(TPCTempInfo));
     }
 
     PT_END(pt);
@@ -488,7 +326,7 @@ ISR(INT2_vect) {
             OFF(P_IRON_PWM);
         }
 
-        g_data.iron.sigma += g_data.iron.power + delta;
+        g_data.iron.sigma += (g_data.iron.power) + delta;
     }
 }
 

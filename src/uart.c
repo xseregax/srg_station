@@ -1,118 +1,151 @@
+#include <util/crc16.h>
 #include "common.h"
+
+#include "heater.h"
 #include "uart.h"
 
 RBUF_DECLARE( uart_tx_buf, uint8_t, UART_TX_BUFF_SIZE);
 RBUF_DECLARE( uart_rx_buf, uint8_t, UART_RX_BUFF_SIZE);
 
-#include "heater.h"
-#include <stdlib.h>
+uint8_t check_uart_info(TPCHeader *head, void *data) {
+
+    if(head->header != PCINFO_HEADER)
+        return 0;
+
+    if((head->sign ^ PCINFO_HEADER) != head->len)
+        return 0;
+
+    uint8_t i, *p, crc = head->type;
+
+    p = (uint8_t *)data;
+    for(i = 0; i < head->len; i++)
+        crc = _crc_ibutton_update(crc, p[i]);
+
+    if(head->crc != crc)
+        return 0;
+
+    return 1;
+}
 
 PT_THREAD(uart_pt_recieve(struct pt *pt)) {
-  static uint8_t buf[16];
-  static uint8_t *ptr = buf;
-  static uint8_t mode = 0;
+    static uint8_t buf[sizeof(TPCHeader)];
+    static uint8_t *pbuf = 0;
+    static uint8_t ibuflen = 0;
+    static uint8_t cmd[PCINFO_CMDSIZE];
+    static uint8_t *pcmd = 0;
 
-  PT_BEGIN(pt);
+    PT_BEGIN(pt);
 
-  for(;;) {
-      PT_WAIT_WHILE(pt, RBUF_EMPTY(&uart_rx_buf));
+    for(;;) {
+        PT_WAIT_WHILE(pt, RBUF_EMPTY(&uart_rx_buf));
 
-      uint8_t byte;
+        uint8_t byte;
 
-      ATOMIC_BLOCK(ATOMIC_FORCEON) {
-          byte = RBUF_RD(&uart_rx_buf);
-      }
+        ATOMIC_BLOCK(ATOMIC_FORCEON) {
+            byte = RBUF_RD(&uart_rx_buf);
+        }
 
-      switch(byte)
-      {
+        if(ibuflen) {
+            *pcmd = byte;
+            pcmd ++;
 
-      case 'r':
-          mode = 0;
+            if(pcmd - cmd < ibuflen) continue;
 
-          ON(P_LED_RED);
+            TPCHeader *h = (TPCHeader*)buf;
+            if(check_uart_info(h, cmd)) {
+                TOGGLE(P_LED_RED);
 
-          AVR_RESET;
+                if(h->type == HI_PID_P)
+                    pid.kc = 1.0 * (*(uint16_t*)cmd);
+                else
+                if(h->type == HI_PID_I)
+                    pid.ti = 1.0 * (*(uint16_t*)cmd);
+                else
+                if(h->type == HI_PID_D)
+                    pid.td = 1.0 * (*(uint16_t*)cmd);
 
-          break;
-      case 's':
-          mode = 0;
-          send_stat = send_stat?0:1;
-          break;
-      case 'p':
-          mode = 'p';
-          ptr = buf;
+                init_pid4(&pid);
+            }
 
-          uart_send_b(byte);
-          break;
+            pcmd = 0;
+            ibuflen = 0;
 
-      case 'i':
-          mode = 'i';
-          ptr = buf;
+            pbuf = 0;
+            continue;
+        }
 
-          uart_send_b(byte);
-          break;
+        //start packet sign
+        if(byte == PCINFO_HEADER && !pbuf) {
+            pbuf = buf;
+        }
 
-      case 'd':
-          mode = 'd';
-          ptr = buf;
+        if(!pbuf) continue;
 
-          uart_send_b(byte);
-          break;
+        *pbuf = byte;
+        pbuf++;
 
-          case '\r':
+        if((uint16_t)(pbuf - buf) < sizeof(TPCHeader))
+           continue;
 
-          if(mode != 0) {
-              *ptr = 0;
+        TPCHeader *h = (TPCHeader*)buf;
 
-              if(ptr - buf >= 1) {
-                  uint8_t x = atoi(buf);
-                  if(x > 0 && x < 255) {
-                      if(mode == 'p')
-                          pid_p = x;
-                      else
-                      if(mode == 'i')
-                          pid_i = x;
-                      if(mode == 'd')
-                          pid_d = x;
-                      pid_init();
-                      uart_send_str("\r\n");
-                      uart_send_b(mode);
-                      uart_send_str(": ");
-                      uart_send_str(buf);
-                      uart_send_str("\r\n");
-                  } else {
-                      uart_send_str("err x\r\n");
-                  }
-              } else {
-                  uart_send_str("small\r\n");
-              }
-          } else {
-              uart_send_str("empty\r\n");
-          }
-          mode = 0;
-          break;
+        uint8_t check = 1;
+        if(h->header != PCINFO_HEADER || (h->sign ^ PCINFO_HEADER) != h->len || h->len > PCINFO_CMDSIZE)
+            check = 0;
 
-      case '0': case '1': case '2': case '3': case '4': case '5':
-      case '6': case '7': case '8': case '9':
-          *ptr = byte; ptr ++;
+        if(!check) {
+            uint8_t i = 1;
+            for(i = 0; i < sizeof(TPCHeader); i++) {
+                if(buf[i] == PCINFO_HEADER)
+                    break;
+            }
 
-          uart_send_b(byte);
+            if(buf[i] == PCINFO_HEADER) {
+                pbuf = buf;
+                for(; i < sizeof(TPCHeader); i++) {
+                   *pbuf = buf[i];
+                    pbuf++;
+                }
+            }
+            else
+                pbuf = 0;
+        } else {
+            ibuflen = h->len;
+            pcmd = cmd;
+        }
 
-          if(ptr - buf > 15) { mode = 0; ptr = buf; uart_send_str("clear\r\n"); }
 
-          break;
+    }
 
-      default:
-          mode = 0;
+    PT_END(pt);
+}
 
-          uart_send_str("def,");
-          uart_send_b(byte);
-          uart_send_str("\r\n");
-          break;
-      }
-  }
 
-  PT_END(pt);
+
+void send_uart_msg(TPCHeadType type, void *data, uint8_t len) {
+    TPCHeader head;
+
+    head.header = PCINFO_HEADER;
+    head.sign = PCINFO_HEADER ^ len;
+    head.len = len;
+
+    head.type = type;
+
+    uint8_t i, *p, crc = type;
+
+    p = (uint8_t*)data;
+    for(i = 0; i < len; i++)
+        crc = _crc_ibutton_update(crc, p[i]);
+
+    head.crc = crc;
+
+    p = (uint8_t*)&head;
+    for(i = 0; i < sizeof(TPCHeader); i++)
+        uart_send_b(p[i]);
+
+    p = (uint8_t*)data;
+    for(i = 0; i < len; i++)
+        uart_send_b(p[i]);
 }
 
 
