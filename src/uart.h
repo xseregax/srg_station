@@ -13,8 +13,8 @@
 #define UART_BAUDRATE 57600L
 #define UART_DIVIDER ((F_CPU + (UART_DIV2X * UART_BAUDRATE) / 2 ) / (UART_DIV2X * UART_BAUDRATE) - 1)
 
-#define UART_RX_BUFF_SIZE 32
-#define UART_TX_BUFF_SIZE 32
+#define UART_RX_BUFF_SIZE 16
+#define UART_TX_BUFF_SIZE 64
 
 
 /*
@@ -33,7 +33,7 @@ typedef struct {
 #define PCINFO_HEADER 0xAD
 #define PCINFO_CMDSIZE 20
 
-typedef enum { HI_ZERO = 0, HI_MSG, HI_IRON, HI_PID_P, HI_PID_I, HI_PID_D } TPCHeadType;
+typedef enum { HI_ZERO = 0, HI_MSG, HI_IRON, HI_PID, HI_PID_P, HI_PID_I, HI_PID_D } TPCHeadType;
 
 
 /*

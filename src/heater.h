@@ -11,10 +11,10 @@
 #define IRON_ADC_HOT 850L //чет жаримс, adc
 #define IRON_ADC_ERROR 900L //не подключено термосопротивление, adc
 
-#define IRON_PID_DELTA_T 50
+#define IRON_PID_DELTA_T 100
 
 #define IRON_TEMP_SOFT 50 //температура, до которой нагрев идет в 25% мощности, гр
-#define IRON_TEMP_MIN 50 //мин температура, гр
+#define IRON_TEMP_MIN 150 //мин температура, гр
 #define IRON_TEMP_MAX 450L //макс температура, гр
 #define IRON_TEMP_STEP 10 //шаг регулировки температуры, гр
 
@@ -26,6 +26,15 @@ typedef struct {
     uint8_t power;
 } TPCTempInfo;
 
+typedef struct {
+    uint16_t xk;
+    uint16_t tk;
+    double pp;
+    double pi;
+    double pd;
+    double yk;
+} TPCPidInfo;
+
 typedef struct _pid_params
 {
     double kc; // Controller gain from Dialog Box
@@ -35,8 +44,6 @@ typedef struct _pid_params
 
     double k0; // k0 value for PID controller
     double k1; // k1 value for PID controller
-    double k2; // k2 value for PID controller
-    double k3; // k3 value for PID controller
 } pid_params; // struct pid_params
 
 //апроксимация температуры по контрольным точкам
@@ -55,7 +62,7 @@ x = (y - y0) * a + x0
 */
 
 //измеренные °C - ADC
-
+/*
 #define TZ_XY0 0.0,   0.0
 #define TZ_XY1 30.0,  375.0
 #define TZ_XY2 50.0,  396.0
@@ -63,6 +70,14 @@ x = (y - y0) * a + x0
 #define TZ_XY4 150.0, 480.0
 #define TZ_XY5 183.0, 509.0
 #define TZ_XY6 500.0, 1024.0
+*/
+#define TZ_XY0 0.0,   0.0
+#define TZ_XY1 80.0,  440.0
+#define TZ_XY2 160.0, 540.0
+#define TZ_XY3 215.0, 600.0
+#define TZ_XY4 300.0, 700.0
+#define TZ_XY5 400.0, 800.0
+#define TZ_XY6 600.0, 1024.0
 
 #define TZ_AMUL _BV(14) //float to 32bit
 
@@ -82,6 +97,6 @@ void heater_init_mod(void);
 PT_THREAD(heater_pt_manage(struct pt *pt));
 
 extern volatile pid_params pid;
-void init_pid4(volatile pid_params *p);
+void init_pid4(void);
 
 #endif // IRON_H

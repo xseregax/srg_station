@@ -192,9 +192,7 @@ PT_THREAD(actions_pt_check_commands(struct pt *pt)) {
 
             if(g_action_cmd.action == ACT_PUSH) {
 
-                if(g_data.menu == MENU_IRON) {
-                    g_data.iron.out1 = g_data.iron.out1? 0: 1;
-                }
+
             } //ACT_PUSH
         } //NM_BUTTON3
         else

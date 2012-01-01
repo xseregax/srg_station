@@ -58,19 +58,22 @@ PT_THREAD(uart_pt_recieve(struct pt *pt)) {
                 if(h->type == HI_PID_P)
                     pid.kc = 1.0 * (*(uint16_t*)cmd);
                 else
-                if(h->type == HI_PID_I)
-                    pid.ti = 1.0 * (*(uint16_t*)cmd);
+                if(h->type == HI_PID_I) {
+                    pid.ti = 0.001 * (*(uint16_t*)cmd);
+                    pid.td = pid.ti / 4;
+                }
                 else
                 if(h->type == HI_PID_D)
-                    pid.td = 1.0 * (*(uint16_t*)cmd);
+                    pid.td = pid.td;//pid.td = 0.001 * (*(uint16_t*)cmd);
 
-                init_pid4(&pid);
+                init_pid4();
             }
 
             pcmd = 0;
             ibuflen = 0;
 
             pbuf = 0;
+
             continue;
         }
 

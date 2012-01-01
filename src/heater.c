@@ -52,27 +52,24 @@ uint16_t find_temp(uint16_t adc, const TTempZones* tempzones, uint8_t count) {
 #include <stdlib.h>
 #include <math.h>
 
-// These defines are needed for loop timing and PID controller timing
-#define TWENTY_SECONDS (400)
-#define TEN_SECONDS (200)
-#define FIVE_SECONDS (100)
-#define ONE_SECOND (20)
-#define T_50MSEC (50) // Period time of TTimer in msec.
-
-#define GMA_HLIM (100.0) // PID controller upper limit [%]
-#define GMA_LLIM (0.0) // PID controller lower limit [%]
-
-
-
 //--------------------
 
 volatile pid_params pid;
 
-static double xk_1; // PV[k-1] = Thlt[k-1]
-static double xk_2; // PV[k-2] = Thlt[k-1]
+static uint8_t yk;
+static uint16_t xk_1; // PV[k-1] = Thlt[k-1]
+static uint16_t xk_2; // PV[k-2] = Thlt[k-1]
 
+#define IRON_PID_KC (30.0)
+#define IRON_PID_TI (50.0)
+#define IRON_PID_TD (IRON_PID_TI / 4.0)
 
-void init_pid4(volatile pid_params *p) {
+#define IRON_PID_TS (IRON_PID_DELTA_T / 1000.0)
+
+#define IRON_PID_K0 (IRON_PID_KC * IRON_PID_TS / IRON_PID_TI)
+#define IRON_PID_K1 (IRON_PID_KC * IRON_PID_TD / IRON_PID_TS)
+
+void init_pid4(void) {
 /*------------------------------------------------------------------
 Purpose : This function initialises the Allen Bradley Type A PID
 controller.
@@ -88,26 +85,21 @@ The LPF parameters are also initialised here:
 lpf[k] = lpf1 * lpf[k-1] + lpf2 * lpf[k-2]
 Returns : No values are returned
 ------------------------------------------------------------------*/
+    pid.ts = IRON_PID_DELTA_T / 1000.0;
 
-    //p->kc = 5;
-    //p->ti = 0;
-    //p->td = 0;
-
-    p->ts = IRON_PID_DELTA_T / 1000.0;
-
-    if (p->ti == 0.0) {
-        p->k0 = 0.0;
+    if (pid.ti == 0.0) {
+        pid.k0 = 0.0;
     }
     else {
-        p->k0 = p->kc * p->ts / p->ti;
+        pid.k0 = pid.kc * pid.ts / pid.ti; //0.16
     }
 
-    p->k1 = p->kc * p->td / p->ts;
+    pid.k1 = pid.kc * pid.td / pid.ts; //150
 
 } // init_pid3()
 
 
-void pid_reg4(double xk, double *yk, double tk, volatile pid_params *p, int vrg) {
+void pid_reg4(uint16_t xk, uint16_t tk) {
 /*------------------------------------------------------------------
 Purpose : This function implements the Takahashi PID controller,
 which is a type C controller: the P and D term are no
@@ -122,10 +114,14 @@ tset : The setpoint value for the temperature
 vrg: Release signal: 1 = Start control, 0 = disable PID controller
 Returns : No values are returned
 ------------------------------------------------------------------*/
-    *yk = (double)g_data.iron.power;
+    int16_t ek;
+    double pp, pi, pd;
 
-    double ek, pp, pi, pd;
-    ek = tk - xk; // calculate e[k] = SP[k] - PV[k]
+    ek = (int16_t)(tk - xk);
+
+    if(!xk_1 || !xk_2) {
+        xk_1 = xk_2 = xk;
+    }
 
     //-----------------------------------------------------------
     // Calculate PID controller:
@@ -134,45 +130,47 @@ Returns : No values are returned
     //        Td/Ts*(2*PV[k-1] - PV[k] - PV[k-2]))
     //-----------------------------------------------------------
 
-    if(vrg) {
-        // y[k] = y[k-1] + Kc*(PV[k-1] - PV[k]) +
-        pp = p->kc * (xk_1 - xk);
+    pp = pid.kc * (1.0 * xk_1 - 1.0 * xk);
+    pi = pid.k0 * ek;
+    pd = pid.k1 * (2.0 * xk_1 - 1.0 * xk - 1.0 * xk_2);
 
-        // Kc*Ts/Ti * e[k] +
-        pi = p->k0 * ek;
+    yk += pp + pi + pd;
 
-        //Kc*Td/Ts* (2*PV[k-1] - PV[k] - PV[k-2]))
-        pd = p->k1 * (2.0 * xk_1 - xk - xk_2);
+    xk_2 = xk_1;
+    xk_1 = xk;
 
-        *yk += pp + pi + pd;
+    /*TPCPidInfo info;
+
+    info.pp = pp;
+    info.pi = pi;
+    info.pd = pd;
+
+    info.xk = xk;
+    info.tk = tk;
+    info.yk = yk;
+
+    send_uart_msg(HI_PID, &info, sizeof(TPCPidInfo));
+    */
+
+    if (yk > POWER_MAX) {
+        yk = POWER_MAX;
     }
     else
-        *yk = pp = pi = pd = 0;
-
-    xk_2 = xk_1; // PV[k-2] = PV[k-1]
-    xk_1 = xk;   // PV[k-1] = PV[k]
-
-    if (*yk > GMA_HLIM) {
-        *yk = GMA_HLIM;
-    }
-    else
-    if (*yk < GMA_LLIM) {
-        *yk = GMA_LLIM;
+    if (yk < POWER_MIN) {
+        yk = POWER_MIN;
     }
 
 } // pid_reg4()
 
 
-uint8_t pid_Controller(uint16_t temp_need, uint16_t temp_curr) {
-    double out = 0.0;
-
-    pid_reg4((double)temp_curr, &out, (double)temp_need, &pid, g_data.iron.out1? 1: 0);
+uint8_t pid_Controller(uint16_t temp_curr, uint16_t temp_need) {
+    pid_reg4(temp_curr, temp_need);
 
     if(temp_curr < IRON_TEMP_SOFT && temp_curr < temp_need) {
         return POWER_MAX / 5;
     }
 
-    return (uint8_t) ceil(out);
+    return (uint8_t) ceil(yk);
 }
 
 
@@ -189,11 +187,22 @@ void heater_iron_setpower(uint8_t pow) {
 void heater_iron_on(void) {
     memset((void*) &g_data.iron, 0, sizeof(TIron));
 
+    adc_read(ADC_PIN_IRON);
+
     g_data.iron.temp_need = IRON_TEMP_MIN;
 
     heater_iron_setpower(0);
 
-    init_pid4(&pid);
+    yk = 0;
+    xk_1 = xk_2 = 0;
+
+    if(pid.kc <= 0.001){
+        pid.kc = 30;
+        pid.ti = 0.001 * 50;
+        pid.td = (0.001 * 50) / 4;
+    }
+
+    init_pid4();
 
     g_data.iron.on = _ON;
 }
@@ -241,21 +250,22 @@ PT_THREAD(iron_pt_manage(struct pt *pt)) {
             BEEP(1000); //beep and reset with watchdog
         }
 
-        //if(abs(adc - iron->adc) > 1)
         if(adc != iron->adc) {
             iron->adc = adc;
 
-            iron->temp = find_temp(adc, gIronTempZones, sizeof(gIronTempZones));
+            uint16_t temp = find_temp(adc, gIronTempZones, sizeof(gIronTempZones));
 
-            ui_set_update_screen(UPDATE_SCREEN_VALS);
+            if(abs(temp - iron->temp) > 1)
+                ui_set_update_screen(UPDATE_SCREEN_VALS);
+
+            iron->temp = temp;
         }
 
         uint8_t pow;
 
-        pow = pid_Controller(iron->temp_need, iron->temp);
+        pow = pid_Controller(iron->temp, iron->temp_need);
 
         if(pow != iron->power) {
-
             heater_iron_setpower(pow);
             ui_set_update_screen(UPDATE_SCREEN_VALS);
         }
