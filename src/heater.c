@@ -117,12 +117,29 @@ void heater_setpower(uint8_t pow) {
     }
 }
 
+void fen_fan_set_power(uint8_t power) {
+    g_data.fen.fan_power = power;
+
+    OCR2 = power;
+}
+
+void fen_fan_on(void) {
+    g_data.fen.fan_on = 1;
+
+    fen_fan_set_power(10);
+
+    TCCR2 |= TIMER2_PRESCALE;
+}
+
 void heater_on(void) {
     if(g_data.menu == MENU_IRON)
         g_data.heater = &g_data.iron;
     else
-    if(g_data.menu == MENU_FEN)
+    if(g_data.menu == MENU_FEN) {
         g_data.heater = &g_data.fen;
+
+        fen_fan_on();
+    }
     else
         return;
 

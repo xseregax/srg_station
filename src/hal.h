@@ -5,6 +5,9 @@
 #define TIMER1A_PRESCALE_OFF (_BV(CS12) | _BV(CS11) | _BV(CS10)) //timer stop
 #define TIMER1A_TIME 150 //prescaler 64, so 16Mhz/64/250 = 1ms
 
+#define TIMER2_PRESCALE (_BV(CS22) | _BV(CS20)) //prescaler 128, 125kHz
+#define TIMER2_PRESCALE_OFF (_BV(CS22) | _BV(CS21) | _BV(CS20)) //timer stop
+
 //вкл станции
 inline void hal_power_on(void) {
     DRIVER(P_POWER,OUT);
@@ -100,6 +103,14 @@ inline void hal_init_pwm(void) {
     OCR1A = TIMER1A_TIME; //для сравнения
 
     TIMSK |= _BV(OCIE1A); //вкл прерыв. таймер1
+
+
+    //timer2, mode 3, fast PWM, page 128, tbl 50, prescaler off
+    TCCR2 = _BV(WGM21) | _BV(WGM20) |
+            _BV(COM21) | _BV(COM20); //non-invert,
+
+    TCNT2 = 0; //текущий счетчик
+    OCR2 = 0; //для сравнения
 }
 
 //инит прерываний

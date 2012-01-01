@@ -18,6 +18,8 @@ void heater_dec_temp(void) {
     else
         heater->temp_need = heater->def_t_min;
 
+    fen_fan_set_power(g_data.fen.fan_power --);
+
     ui_set_update_screen(UPDATE_SCREEN_VALS);
 }
 
@@ -28,6 +30,8 @@ void heater_inc_temp(void) {
         heater->temp_need += heater->def_t_step;
     else
         heater->temp_need = heater->def_t_max;
+
+    fen_fan_set_power(g_data.fen.fan_power ++);
 
     ui_set_update_screen(UPDATE_SCREEN_VALS);
 }

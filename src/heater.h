@@ -78,7 +78,7 @@ typedef struct {
 } TPid;
 
 typedef struct {
-    unsigned on: 1; //вкл-выкл
+    uint8_t on: 1; //вкл-выкл
 
     uint16_t adc; //последние значение с adc
 
@@ -90,6 +90,8 @@ typedef struct {
 
     TPid pid;
 
+    uint8_t fan_on: 1;
+    uint8_t fan_power;
 
     uint16_t def_t_min;
     uint16_t def_t_max;
@@ -134,6 +136,8 @@ x = (y - y0) * a + x0
 
 void heater_on(void);
 void heater_off(void);
+void fen_fan_set_power(uint8_t power);
+
 
 void heater_init_mod(void);
 PT_THREAD(heater_pt_manage(struct pt *pt));
