@@ -1,5 +1,4 @@
 #include "common.h"
-#include "heater.h"
 #include "ui.h"
 #include "actions.h"
 
@@ -11,36 +10,35 @@ inline void actions_init_cmd() {
 }
 
 
-void iron_dec_temp(void) {
-    volatile TIron *iron = &g_data.iron;
+void heater_dec_temp(void) {
+    volatile THeater *heater = g_data.heater;
 
-    if(iron->temp_need > IRON_TEMP_MIN + IRON_TEMP_STEP)
-        iron->temp_need -= IRON_TEMP_STEP;
+    if(heater->temp_need > heater->def_t_min + heater->def_t_step)
+        heater->temp_need -= heater->def_t_step;
     else
-        iron->temp_need = IRON_TEMP_MIN;
+        heater->temp_need = heater->def_t_min;
 
     ui_set_update_screen(UPDATE_SCREEN_VALS);
 }
 
-void iron_inc_temp(void) {
-    volatile TIron *iron = &g_data.iron;
+void heater_inc_temp(void) {
+    volatile THeater *heater = g_data.heater;
 
-    if(iron->temp_need < IRON_TEMP_MAX - IRON_TEMP_STEP)
-        iron->temp_need += IRON_TEMP_STEP;
+    if(heater->temp_need < heater->def_t_max - heater->def_t_step)
+        heater->temp_need += heater->def_t_step;
     else
-        iron->temp_need = IRON_TEMP_MAX;
+        heater->temp_need = heater->def_t_max;
 
     ui_set_update_screen(UPDATE_SCREEN_VALS);
 }
 
 void menu_select_main(void) {
+    heater_off();
+
     g_data.menu = MENU_SELECT;
     g_data.temp = 0;
 
-    heater_iron_off();
-    heater_fen_off();
-
-    ui_set_update_screen(UPDATE_SCREEN_VALS);
+    ui_set_update_screen(UPDATE_SCREEN_ALL);
 }
 
 void avr_reset(void) {
@@ -70,8 +68,7 @@ void menu_select_mode(void) {
         case 1:
             g_data.menu = MENU_FEN;
 
-            heater_iron_off();
-            heater_fen_on();
+            heater_on();
             break;
         case 2:
             g_data.menu = MENU_DREL;
@@ -80,8 +77,7 @@ void menu_select_mode(void) {
         default:
             g_data.menu = MENU_IRON;
 
-            heater_iron_on();
-            heater_fen_off();
+            heater_on();
             break;
     }
 
@@ -213,8 +209,8 @@ PT_THREAD(actions_pt_check_commands(struct pt *pt)) {
 
             if(g_action_cmd.action == ACT_ROTATE_LEFT) {
 
-                if(g_data.menu == MENU_IRON) {
-                    iron_dec_temp();
+                if(g_data.menu == MENU_IRON || g_data.menu == MENU_FEN) {
+                    heater_dec_temp();
                 } //MENU_IRON
                 else
                 if(g_data.menu == MENU_SELECT) {
@@ -225,8 +221,8 @@ PT_THREAD(actions_pt_check_commands(struct pt *pt)) {
             else
             if(g_action_cmd.action == ACT_ROTATE_RIGHT) {
 
-                if(g_data.menu == MENU_IRON) {
-                    iron_inc_temp();
+                if(g_data.menu == MENU_IRON || g_data.menu == MENU_FEN) {
+                    heater_inc_temp();
                 } //MENU_IRON
                 else
                 if(g_data.menu == MENU_SELECT) {

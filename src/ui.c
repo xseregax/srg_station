@@ -1,6 +1,5 @@
 #include "common.h"
 #include "hd44780.h"
-#include "heater.h"
 #include "ui.h"
 
 PGMSTR(str_iron, "iron");
@@ -92,6 +91,55 @@ inline void menu_display_iron(void) {
     }
 }
 
+
+inline void menu_display_fen(void) {
+/*
+    CurrTemp    TempNeed
+    IRON        SLEEP
+
+    ******** ********
+    Temp 150 / 350 °C
+    iron            W
+    ******** ********
+*/
+    char buf[16+1];
+
+    if(g_data.update_screen & UPDATE_SCREEN_MENU) {
+        lcd_clear();
+
+        lcd_xy(0, 0);
+        //lcd_str_P(str_curr_temp);
+
+        lcd_xy(1, 0);
+        //lcd_str_P(str_iron);
+    }
+
+    if(g_data.update_screen & UPDATE_SCREEN_VALS) {
+
+        sprintf(buf, "%04d / %04d \337C", g_data.fen.temp, g_data.fen.temp_need);
+
+        lcd_xy(0, 0);
+        lcd_str(buf);
+
+        lcd_xy(1, 0);
+        sprintf(buf, "%04d / %04d %%", g_data.fen.adc, g_data.fen.power);
+        lcd_str(buf);
+
+        //lcd_xy(1, 15);
+        //lcd_char('H');
+    }
+
+    if(g_data.update_screen & UPDATE_SCREEN_ERROR) {
+        lcd_clear();
+
+        lcd_xy(0, 0);
+        lcd_str("ERROR");
+
+        lcd_xy(1, 0);
+        lcd_str("INSERT FEN!");
+    }
+}
+
 PT_THREAD(ui_pt_update_display(struct pt *pt)) {
     static TIMER_T timer;
 
@@ -109,7 +157,7 @@ PT_THREAD(ui_pt_update_display(struct pt *pt)) {
                 break;
 
             case MENU_FEN:
-                //menu_display_fen();
+                menu_display_fen();
                 break;
 
             case MENU_DREL:

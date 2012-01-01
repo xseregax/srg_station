@@ -1,7 +1,6 @@
 #include <util/crc16.h>
 #include "common.h"
 
-#include "heater.h"
 #include "uart.h"
 
 RBUF_DECLARE( uart_tx_buf, uint8_t, UART_TX_BUFF_SIZE);
@@ -54,7 +53,7 @@ PT_THREAD(uart_pt_recieve(struct pt *pt)) {
             TPCHeader *h = (TPCHeader*)buf;
             if(check_uart_info(h, cmd)) {
                 TOGGLE(P_LED_RED);
-
+/*
                 if(h->type == HI_PID_P)
                     pid.kc = 1.0 * (*(uint16_t*)cmd);
                 else
@@ -67,6 +66,7 @@ PT_THREAD(uart_pt_recieve(struct pt *pt)) {
                     pid.td = pid.td;//pid.td = 0.001 * (*(uint16_t*)cmd);
 
                 init_pid4();
+*/
             }
 
             pcmd = 0;

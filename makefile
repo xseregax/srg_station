@@ -18,7 +18,7 @@ MODULES := ./src ./src/pt ./src/common
 # config of makefile
 #
 
-CFLAGS := -Os -std=gnu99
+CFLAGS := -O3 -std=gnu99
 #CFLAGS += -Wall
 CFLAGS += -Werror -Wextra
 CFLAGS += -DF_CPU=$(F_CPU)UL

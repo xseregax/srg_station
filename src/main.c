@@ -7,7 +7,6 @@
 #include "common.h"
 
 #include "hal.h"
-#include "heater.h"
 #include "input.h"
 #include "actions.h"
 #include "ui.h"

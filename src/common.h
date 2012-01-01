@@ -21,6 +21,7 @@
 #include "pin_macros.h"
 #include "pins.h"
 
+#include "heater.h"
 
 #define VERSION "0.1"
 
@@ -59,20 +60,6 @@ typedef enum { NM_NONE, NM_BUTTON1, NM_BUTTON2, NM_BUTTON3, NM_BUTTON4,
 typedef enum { MENU_SELECT, MENU_IRON, MENU_FEN, MENU_DREL } TMenuStates;
 
 
-typedef struct {
-    unsigned on: 1; //вкл-выкл паяльника
-
-    uint16_t adc; //последние значение с adc
-
-    uint8_t power; //текущая мощность
-    uint8_t sigma; //для алг. Брезенхема
-
-    uint16_t temp; //текущая температура тены
-    uint16_t temp_need; //требуемая температура
-
-    uint16_t out1;
-} TIron;
-
 
 typedef struct {
     TMenuStates menu;
@@ -80,7 +67,10 @@ typedef struct {
 
     uint8_t temp; //для временного юзания
 
-    TIron iron; //параметры паяльника
+    THeater iron; //параметры паяльника
+    THeater fen; //параметры фена
+
+    volatile THeater *heater;
 
 } TGlobalData;
 

@@ -7,16 +7,39 @@
 #define POWER_MIN 0 //минимальная мощность
 #define POWER_MAX 100 //максимальная мощность
 
+#define HEATER_TEMP_SOFT 50 //температура, до которой нагрев идет в 25% мощности, гр
+
+#define HEATER_ADC_HOT 850L //чет жаримс, adc
+#define HEATER_ADC_ERROR 900L //не подключен паяльник/фен, adc
+
+#define HEATER_PID_DELTA_T 100 //обновление пид
+
 //пид паяльника
-#define IRON_ADC_HOT 850L //чет жаримс, adc
-#define IRON_ADC_ERROR 900L //не подключено термосопротивление, adc
+#define IRON_PID_KC (20) // °C/%
+#define IRON_PID_TI (48) // msec
+#define IRON_PID_TD (IRON_PID_TI / 4) //msec
 
-#define IRON_PID_DELTA_T 100
+#define IRON_PID_K0 (IRON_PID_KC * HEATER_PID_DELTA_T / IRON_PID_TI)
+#define IRON_PID_K1 (IRON_PID_KC * IRON_PID_TD / HEATER_PID_DELTA_T)
 
-#define IRON_TEMP_SOFT 50 //температура, до которой нагрев идет в 25% мощности, гр
 #define IRON_TEMP_MIN 150 //мин температура, гр
 #define IRON_TEMP_MAX 450L //макс температура, гр
 #define IRON_TEMP_STEP 10 //шаг регулировки температуры, гр
+
+
+//пид фена
+#define FEN_PID_KC (20) // °C/%
+#define FEN_PID_TI (48) // msec
+#define FEN_PID_TD (FEN_PID_TI / 4) //msec
+
+#define FEN_PID_K0 (FEN_PID_KC * HEATER_PID_DELTA_T / FEN_PID_TI)
+#define FEN_PID_K1 (FEN_PID_KC * FEN_PID_TD / HEATER_PID_DELTA_T)
+
+#define FEN_TEMP_MIN 150 //мин температура, гр
+#define FEN_TEMP_MAX 450L //макс температура, гр
+#define FEN_TEMP_STEP 10 //шаг регулировки температуры, гр
+
+
 
 
 typedef struct {
@@ -35,16 +58,6 @@ typedef struct {
     double yk;
 } TPCPidInfo;
 
-typedef struct _pid_params
-{
-    double kc; // Controller gain from Dialog Box
-    double ti; // Time-constant for I action from Dialog Box
-    double td; // Time-constant for D action from Dialog Box
-    double ts; // Sample time [sec.] from Dialog Box
-
-    double k0; // k0 value for PID controller
-    double k1; // k1 value for PID controller
-} pid_params; // struct pid_params
 
 //апроксимация температуры по контрольным точкам
 typedef struct {
@@ -54,6 +67,39 @@ typedef struct {
     uint32_t a;  //
 } TTempZones;
 
+
+typedef struct {
+    uint16_t xk_1;
+    uint16_t xk_2;
+
+    uint16_t kc;
+    uint16_t k0;
+    uint16_t k1;
+} TPid;
+
+typedef struct {
+    unsigned on: 1; //вкл-выкл
+
+    uint16_t adc; //последние значение с adc
+
+    uint8_t power; //текущая мощность
+    uint8_t sigma; //для алг. Брезенхема
+
+    uint16_t temp; //текущая температура тены
+    uint16_t temp_need; //требуемая температура
+
+    TPid pid;
+
+
+    uint16_t def_t_min;
+    uint16_t def_t_max;
+    uint8_t def_t_step;
+    TTempZones *def_zones;
+    uint8_t def_adc_pin;
+
+} THeater;
+
+
 /*
 данные калибровки
 x - °C, y - adc
@@ -62,41 +108,34 @@ x = (y - y0) * a + x0
 */
 
 //измеренные °C - ADC
-/*
-#define TZ_XY0 0.0,   0.0
-#define TZ_XY1 30.0,  375.0
-#define TZ_XY2 50.0,  396.0
-#define TZ_XY3 100.0, 440.0
-#define TZ_XY4 150.0, 480.0
-#define TZ_XY5 183.0, 509.0
-#define TZ_XY6 500.0, 1024.0
-*/
-#define TZ_XY0 0.0,   0.0
-#define TZ_XY1 80.0,  440.0
-#define TZ_XY2 160.0, 540.0
-#define TZ_XY3 215.0, 600.0
-#define TZ_XY4 300.0, 700.0
-#define TZ_XY5 400.0, 800.0
-#define TZ_XY6 600.0, 1024.0
+//паяльник
+#define TZ_PXY0 0.0,   0.0
+#define TZ_PXY1 20.0,  350.0
+#define TZ_PXY2 160.0, 540.0
+#define TZ_PXY3 215.0, 600.0
+#define TZ_PXY4 300.0, 700.0
+#define TZ_PXY5 400.0, 800.0
+#define TZ_PXY6 600.0, 1024.0
+
+//fen
+#define TZ_FXY0 0.0,   0.0
+#define TZ_FXY1 20.0,  350.0
+#define TZ_FXY2 160.0, 540.0
+#define TZ_FXY3 215.0, 600.0
+#define TZ_FXY4 300.0, 700.0
+#define TZ_FXY5 400.0, 800.0
+#define TZ_FXY6 600.0, 1024.0
+
 
 #define TZ_AMUL _BV(14) //float to 32bit
 
 #define TZ_X_(X0,Y0,X1,Y1) { (uint16_t)Y1, (uint16_t)X0, (uint16_t)Y0, (uint32_t)((((X1 - X0) / (Y1 - Y0))) * TZ_AMUL) }
 #define TZ_X(x,y) TZ_X_(x,y)
 
-
-void heater_iron_on(void);
-void heater_iron_off(void);
-
-void heater_iron_setpower(uint8_t pow);
-
-void heater_fen_on(void);
-void heater_fen_off(void);
+void heater_on(void);
+void heater_off(void);
 
 void heater_init_mod(void);
 PT_THREAD(heater_pt_manage(struct pt *pt));
-
-extern volatile pid_params pid;
-void init_pid4(void);
 
 #endif // IRON_H

@@ -1,21 +1,27 @@
+#include "stdlib.h"
 #include "common.h"
 #include "hal.h"
 #include "uart.h"
 #include "ui.h"
 #include "heater.h"
 
-
 TTempZones gIronTempZones[] = {
-    TZ_X(TZ_XY0, TZ_XY1),
-    TZ_X(TZ_XY1, TZ_XY2),
-    TZ_X(TZ_XY2, TZ_XY3),
-    TZ_X(TZ_XY3, TZ_XY4),
-    TZ_X(TZ_XY4, TZ_XY5),
-    TZ_X(TZ_XY5, TZ_XY6),
+    TZ_X(TZ_PXY0, TZ_PXY1),
+    TZ_X(TZ_PXY1, TZ_PXY2),
+    TZ_X(TZ_PXY2, TZ_PXY3),
+    TZ_X(TZ_PXY3, TZ_PXY4),
+    TZ_X(TZ_PXY4, TZ_PXY5),
+    TZ_X(TZ_PXY5, TZ_PXY6),
 };
 
-
-
+TTempZones gFenTempZones[] = {
+    TZ_X(TZ_FXY0, TZ_FXY1),
+    TZ_X(TZ_FXY1, TZ_FXY2),
+    TZ_X(TZ_FXY2, TZ_FXY3),
+    TZ_X(TZ_FXY3, TZ_FXY4),
+    TZ_X(TZ_FXY4, TZ_FXY5),
+    TZ_X(TZ_FXY5, TZ_FXY6),
+};
 
 //читалка adc c пина
 uint16_t adc_read(uint8_t adc_pin)
@@ -49,57 +55,8 @@ uint16_t find_temp(uint16_t adc, const TTempZones* tempzones, uint8_t count) {
 }
 
 
-#include <stdlib.h>
-#include <math.h>
 
-//--------------------
-
-volatile pid_params pid;
-
-static uint8_t yk;
-static uint16_t xk_1; // PV[k-1] = Thlt[k-1]
-static uint16_t xk_2; // PV[k-2] = Thlt[k-1]
-
-#define IRON_PID_KC (30.0)
-#define IRON_PID_TI (50.0)
-#define IRON_PID_TD (IRON_PID_TI / 4.0)
-
-#define IRON_PID_TS (IRON_PID_DELTA_T / 1000.0)
-
-#define IRON_PID_K0 (IRON_PID_KC * IRON_PID_TS / IRON_PID_TI)
-#define IRON_PID_K1 (IRON_PID_KC * IRON_PID_TD / IRON_PID_TS)
-
-void init_pid4(void) {
-/*------------------------------------------------------------------
-Purpose : This function initialises the Allen Bradley Type A PID
-controller.
-Variables: p: pointer to struct containing all PID parameters
-     Kc * Ts
-k0 = ------- (for I-term)
-        Ti
-          Td
-k1 = Kc * -- (for D-term)
-          Ts
-
-The LPF parameters are also initialised here:
-lpf[k] = lpf1 * lpf[k-1] + lpf2 * lpf[k-2]
-Returns : No values are returned
-------------------------------------------------------------------*/
-    pid.ts = IRON_PID_DELTA_T / 1000.0;
-
-    if (pid.ti == 0.0) {
-        pid.k0 = 0.0;
-    }
-    else {
-        pid.k0 = pid.kc * pid.ts / pid.ti; //0.16
-    }
-
-    pid.k1 = pid.kc * pid.td / pid.ts; //150
-
-} // init_pid3()
-
-
-void pid_reg4(uint16_t xk, uint16_t tk) {
+uint8_t pid_Controller(uint16_t xk, uint16_t tk, uint8_t power, volatile TPid *pid) {
 /*------------------------------------------------------------------
 Purpose : This function implements the Takahashi PID controller,
 which is a type C controller: the P and D term are no
@@ -114,43 +71,26 @@ tset : The setpoint value for the temperature
 vrg: Release signal: 1 = Start control, 0 = disable PID controller
 Returns : No values are returned
 ------------------------------------------------------------------*/
-    int16_t ek;
-    double pp, pi, pd;
+    int16_t ek, yk, pp, pi, pd;
 
     ek = (int16_t)(tk - xk);
 
-    if(!xk_1 || !xk_2) {
-        xk_1 = xk_2 = xk;
-    }
-
     //-----------------------------------------------------------
+    //pid http://www.vandelogt.nl/htm/regelen_pid_uk.htm
     // Calculate PID controller:
     // y[k] = y[k-1] + Kc*(PV[k-1] - PV[k] +
     //        Ts*e[k]/Ti +
     //        Td/Ts*(2*PV[k-1] - PV[k] - PV[k-2]))
     //-----------------------------------------------------------
 
-    pp = pid.kc * (1.0 * xk_1 - 1.0 * xk);
-    pi = pid.k0 * ek;
-    pd = pid.k1 * (2.0 * xk_1 - 1.0 * xk - 1.0 * xk_2);
+    pp = pid->kc * (pid->xk_1 - xk);
+    pi = pid->k0 * ek;
+    pd = pid->k1 * (2 * pid->xk_1 - xk - pid->xk_2);
 
-    yk += pp + pi + pd;
+    pid->xk_2 = pid->xk_1;
+    pid->xk_1 = xk;
 
-    xk_2 = xk_1;
-    xk_1 = xk;
-
-    /*TPCPidInfo info;
-
-    info.pp = pp;
-    info.pi = pi;
-    info.pd = pd;
-
-    info.xk = xk;
-    info.tk = tk;
-    info.yk = yk;
-
-    send_uart_msg(HI_PID, &info, sizeof(TPCPidInfo));
-    */
+    yk = power + pp + pi + pd;
 
     if (yk > POWER_MAX) {
         yk = POWER_MAX;
@@ -160,67 +100,50 @@ Returns : No values are returned
         yk = POWER_MIN;
     }
 
-} // pid_reg4()
-
-
-uint8_t pid_Controller(uint16_t temp_curr, uint16_t temp_need) {
-    pid_reg4(temp_curr, temp_need);
-
-    if(temp_curr < IRON_TEMP_SOFT && temp_curr < temp_need) {
-        return POWER_MAX / 5;
-    }
-
-    return (uint8_t) ceil(yk);
+    return yk & 0xFF;
 }
 
 
-void heater_iron_setpower(uint8_t pow) {
-
+void heater_setpower(uint8_t pow) {
     ATOMIC_BLOCK(ATOMIC_FORCEON) {
-        OFF(P_IRON_PWM);
 
-        g_data.iron.power = pow;
-        g_data.iron.sigma = POWER_MAX;
+        if(g_data.menu == MENU_IRON)
+            OFF(P_IRON_PWM);
+        else
+            OFF(P_FEN_PWM);
+
+        g_data.heater->power = pow;
+        g_data.heater->sigma = POWER_MAX;
     }
 }
 
-void heater_iron_on(void) {
-    memset((void*) &g_data.iron, 0, sizeof(TIron));
+void heater_on(void) {
+    if(g_data.menu == MENU_IRON)
+        g_data.heater = &g_data.iron;
+    else
+    if(g_data.menu == MENU_FEN)
+        g_data.heater = &g_data.fen;
+    else
+        return;
 
-    adc_read(ADC_PIN_IRON);
+    adc_read(g_data.heater->def_adc_pin);
 
-    g_data.iron.temp_need = IRON_TEMP_MIN;
+    g_data.heater->temp_need = g_data.heater->def_t_min;
+    //g_data.heater->pid.xk_1 = g_data.heater->pid.xk_2 = 0;
 
-    heater_iron_setpower(0);
+    heater_setpower(0);
 
-    yk = 0;
-    xk_1 = xk_2 = 0;
-
-    if(pid.kc <= 0.001){
-        pid.kc = 30;
-        pid.ti = 0.001 * 50;
-        pid.td = (0.001 * 50) / 4;
-    }
-
-    init_pid4();
-
-    g_data.iron.on = _ON;
+    g_data.heater->on = _ON;
 }
 
-void heater_iron_off(void) {
-    g_data.iron.on = _OFF;
+void heater_off(void) {
+    if(!g_data.heater) return;
 
-    heater_iron_setpower(0);
-}
+    g_data.heater->on = _OFF;
 
-void heater_fen_on(void) {
-    //if(g_data.fen.on  == _ON) return;
+    heater_setpower(0);
 
-}
-
-void heater_fen_off(void) {
-    //if(g_data.fen.on == _OFF) return;
-
+    g_data.heater = NULL;
 }
 
 PT_THREAD(iron_pt_manage(struct pt *pt)) {
@@ -228,56 +151,56 @@ PT_THREAD(iron_pt_manage(struct pt *pt)) {
 
     PT_BEGIN(pt);
 
-    TIMER_INIT(timer, IRON_PID_DELTA_T);
+    TIMER_INIT(timer, HEATER_PID_DELTA_T);
     for(;;) {
-        PT_WAIT_UNTIL(pt, g_data.iron.on == _ON && TIMER_ENDED(timer));
-        TIMER_INIT(timer, IRON_PID_DELTA_T);
+        PT_WAIT_UNTIL(pt, g_data.heater && g_data.heater->on == _ON && TIMER_ENDED(timer));
+        TIMER_INIT(timer, HEATER_PID_DELTA_T);
 
-        volatile TIron *iron = &g_data.iron;
+        uint16_t adc = adc_read(g_data.heater->def_adc_pin);
 
-        uint16_t adc = adc_read(ADC_PIN_IRON);
-
-        if(adc >= IRON_ADC_ERROR) {
-            heater_iron_setpower(0);
+        if(adc >= HEATER_ADC_ERROR) {
+            heater_setpower(0);
 
             ui_set_update_screen(UPDATE_SCREEN_ERROR);
             continue;
         }
 
-        if(adc >= IRON_ADC_HOT) {
-            heater_iron_setpower(0);
+        if(adc >= HEATER_ADC_HOT) {
+            heater_setpower(0);
 
             BEEP(1000); //beep and reset with watchdog
         }
 
-        if(adc != iron->adc) {
-            iron->adc = adc;
+        if(adc != g_data.heater->adc) {
+            g_data.heater->adc = adc;
 
-            uint16_t temp = find_temp(adc, gIronTempZones, sizeof(gIronTempZones));
+            uint16_t temp = find_temp(adc, g_data.heater->def_zones, sizeof(*g_data.heater->def_zones));
 
-            if(abs(temp - iron->temp) > 1)
+            if(abs(temp - g_data.heater->temp) > 1)
                 ui_set_update_screen(UPDATE_SCREEN_VALS);
 
-            iron->temp = temp;
+            g_data.heater->temp = temp;
         }
 
-        uint8_t pow;
+        uint8_t pow = pid_Controller(g_data.heater->temp, g_data.heater->temp_need, g_data.heater->power, &g_data.heater->pid);
 
-        pow = pid_Controller(iron->temp, iron->temp_need);
+        if(g_data.heater->temp < HEATER_TEMP_SOFT && g_data.heater->temp < g_data.heater->temp_need) {
+            pow = POWER_MAX / 5;
+        }
 
-        if(pow != iron->power) {
-            heater_iron_setpower(pow);
+        if(pow != g_data.heater->power) {
+            heater_setpower(pow);
             ui_set_update_screen(UPDATE_SCREEN_VALS);
         }
 
         TPCTempInfo info;
 
-        info.adc = iron->adc;
-        info.temp = iron->temp;
-        info.temp_need = iron->temp_need;
-        info.power = iron->power;
+        info.adc = g_data.heater->adc;
+        info.temp = g_data.heater->temp;
+        info.temp_need = g_data.heater->temp_need;
+        info.power = g_data.heater->power;
 
-        send_uart_msg(HI_IRON, &info, sizeof(TPCTempInfo));
+        send_uart_msg(HI_HEATER, &info, sizeof(TPCTempInfo));
     }
 
     PT_END(pt);
@@ -309,41 +232,80 @@ PT_THREAD(heater_pt_manage(struct pt *pt)) {
 
 void heater_init_mod(void) {
 
-    heater_iron_off();
-    heater_fen_off();
+    volatile THeater *heater;
+
+    //начальные значения для паяльника
+    heater = &g_data.iron;
+
+    heater->def_adc_pin = ADC_PIN_IRON;
+    heater->pid.kc = IRON_PID_KC;
+    heater->pid.k0 = IRON_PID_K0;
+    heater->pid.k1 = IRON_PID_K1;
+
+    heater->def_t_min = IRON_TEMP_MIN;
+    heater->def_t_max = IRON_TEMP_MAX;
+    heater->def_t_step = IRON_TEMP_STEP;
+
+    heater->def_zones = gIronTempZones;
+
+
+    //начальные значения для фена
+    heater = &g_data.fen;
+
+    heater->def_adc_pin = ADC_PIN_FEN;
+    heater->pid.kc = FEN_PID_KC;
+    heater->pid.k0 = FEN_PID_K0;
+    heater->pid.k1 = FEN_PID_K1;
+
+    heater->def_t_min = FEN_TEMP_MIN;
+    heater->def_t_max = FEN_TEMP_MAX;
+    heater->def_t_step = FEN_TEMP_STEP;
+
+    heater->def_zones = gFenTempZones;
+
+    //неактивен
+    g_data.heater = NULL;
 }
 
 
 //ZCD
 ISR(INT2_vect) {
 
+    if(!g_data.heater || g_data.heater->on == _OFF)
+        return;
+
 #if FULL_PERIOD == 1
     static uint8_t numperiod = 0;
     if(numperiod++ & 0b01) return;
 #endif
 
-    if(g_data.iron.on == _ON) {
-         int8_t delta;
+     int8_t delta;
 
-         if(g_data.iron.sigma > POWER_MAX) {
-            delta = -POWER_MAX;
+     if(g_data.heater->sigma > POWER_MAX) {
+        delta = -POWER_MAX;
 
-            TCNT1 = 0x00;
-            TCCR1B |= TIMER1A_PRESCALE; //вкл таймер 1
-        } else {
-            delta = 0;
+        TCNT1 = 0x00;
+        TCCR1B |= TIMER1A_PRESCALE; //вкл таймер 1
+    } else {
+        delta = 0;
 
+        if(g_data.menu == MENU_IRON)
             OFF(P_IRON_PWM);
-        }
-
-        g_data.iron.sigma += (g_data.iron.power) + delta;
+        else
+            OFF(P_FEN_PWM);
     }
+
+    g_data.heater->sigma += g_data.heater->power + delta;
 }
 
 ISR(TIMER1_COMPA_vect) {
 
-    if(g_data.iron.on == _ON) {
-        ON(P_IRON_PWM); //вкл симмистор
+    if(g_data.heater && g_data.heater->on == _ON) {
+        //вкл симмистор
+        if(g_data.menu == MENU_IRON)
+            ON(P_IRON_PWM);
+        else
+            ON(P_FEN_PWM);
     }
 
     TCCR1B &= ~TIMER1A_PRESCALE_OFF; //выкл таймер 1

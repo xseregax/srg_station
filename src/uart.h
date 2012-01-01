@@ -33,7 +33,7 @@ typedef struct {
 #define PCINFO_HEADER 0xAD
 #define PCINFO_CMDSIZE 20
 
-typedef enum { HI_ZERO = 0, HI_MSG, HI_IRON, HI_PID, HI_PID_P, HI_PID_I, HI_PID_D } TPCHeadType;
+typedef enum { HI_ZERO = 0, HI_MSG, HI_HEATER, HI_PID, HI_PID_P, HI_PID_I, HI_PID_D } TPCHeadType;
 
 
 /*
